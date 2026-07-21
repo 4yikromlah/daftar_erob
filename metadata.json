@@ -1,0 +1,6 @@
+{
+  "name": "Pendaftaran AEROB",
+  "description": "Platform Pendaftaran Anggota Baru AEROB (Aeromodeling & Robotic) dengan desain interaktif Neumorphism & Claymorphism.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
