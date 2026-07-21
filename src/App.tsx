@@ -123,12 +123,19 @@ export default function App() {
   const [isAdminLoginOpen, setIsAdminLoginOpen] = useState(false);
   const [isAdminLoggedIn, setIsAdminLoggedIn] = useState(false);
 
+  // Load initial Kop Config from LocalStorage or default
   const [kopConfig, setKopConfig] = useState<KopConfig>(() => {
     if (typeof window !== 'undefined') {
       const stored = localStorage.getItem(LOCAL_STORAGE_KOP_KEY);
       if (stored) {
         try {
-          return JSON.parse(stored);
+          const parsed = JSON.parse(stored);
+          return {
+            ...parsed,
+            schoolLogo: '', // Clear school logo as requested
+            kopLine2: parsed.kopLine2?.includes('MALANG') ? 'KLUB AEROMODELING & ROBOTIKA (AEROB) BONDOWOSO' : (parsed.kopLine2 || 'KLUB AEROMODELING & ROBOTIKA (AEROB) BONDOWOSO'),
+            kopLine3: 'SMAN 1 BONDOWOSO'
+          };
         } catch (e) {
           console.error('Failed to parse kop config', e);
         }
@@ -138,9 +145,9 @@ export default function App() {
       orgLogo: '',
       schoolLogo: '',
       kopLine1: 'ORGANISASI INTRA SEKOLAH (OSIS) / KLUB EKSTRAKURIKULER',
-      kopLine2: 'KLUB AEROMODELING & ROBOTIKA (AEROB) MALANG',
-      kopLine3: 'SEKOLAH MENENGAH ATAS NEGERI 3 MALANG',
-      kopLine4: 'Sekretariat: Jl. Tugu No. 18, Malang, Jawa Timur. Telp/WA: 081234567890'
+      kopLine2: 'KLUB AEROMODELING & ROBOTIKA (AEROB) BONDOWOSO',
+      kopLine3: 'SMAN 1 BONDOWOSO',
+      kopLine4: 'Sekretariat: SMAN 1 Bondowoso, Jawa Timur'
     };
   });
 
@@ -151,19 +158,16 @@ export default function App() {
     return (import.meta as any).env.VITE_SHEETS_API_URL || '';
   });
 
-  // Generate logos on mount if missing
+  // Generate org logo on mount if missing
   useEffect(() => {
-    if (!kopConfig.orgLogo || !kopConfig.schoolLogo) {
-      const defaultOrg = generateAerobLogo();
-      const defaultSchool = generateSchoolLogo();
-      const updated = {
-        ...kopConfig,
-        orgLogo: kopConfig.orgLogo || defaultOrg,
-        schoolLogo: kopConfig.schoolLogo || defaultSchool
-      };
-      setKopConfig(updated);
-      localStorage.setItem(LOCAL_STORAGE_KOP_KEY, JSON.stringify(updated));
-    }
+    const updated = {
+      ...kopConfig,
+      orgLogo: kopConfig.orgLogo || generateAerobLogo(),
+      schoolLogo: '',
+      kopLine3: 'SMAN 1 BONDOWOSO'
+    };
+    setKopConfig(updated);
+    localStorage.setItem(LOCAL_STORAGE_KOP_KEY, JSON.stringify(updated));
   }, []);
 
   const handleUpdateKopConfig = (newConfig: KopConfig) => {
@@ -232,17 +236,39 @@ export default function App() {
         <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
           
           {/* Organization Logo Identity */}
-          <div className="flex items-center gap-3 cursor-pointer" onClick={() => setActiveTab('beranda')}>
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-600 to-cyan-500 flex items-center justify-center text-white shadow-md border border-white/20">
-              <Plane className="w-5 h-5 absolute -translate-y-1 translate-x-1" />
-              <Cpu className="w-4 h-4 absolute translate-y-2 -translate-x-1" />
+          <div className="flex items-center gap-3 cursor-pointer group" onClick={() => setActiveTab('beranda')}>
+            <div className="flex items-center gap-2">
+              {kopConfig.schoolLogo && (
+                <img 
+                  src={kopConfig.schoolLogo} 
+                  alt="Logo Sekolah" 
+                  className="w-10 h-10 object-contain rounded-xl bg-white/90 p-1 shadow-md border border-slate-200/80 group-hover:scale-105 transition-all duration-300"
+                  referrerPolicy="no-referrer"
+                />
+              )}
+              {kopConfig.orgLogo && (
+                <img 
+                  src={kopConfig.orgLogo} 
+                  alt="Logo Organisasi" 
+                  className="w-10 h-10 object-contain rounded-xl bg-white/90 p-1 shadow-md border border-slate-200/80 group-hover:scale-105 transition-all duration-300"
+                  referrerPolicy="no-referrer"
+                />
+              )}
+              {!kopConfig.schoolLogo && !kopConfig.orgLogo && (
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-600 to-cyan-500 flex items-center justify-center text-white shadow-md border border-white/20">
+                  <Plane className="w-5 h-5 absolute -translate-y-1 translate-x-1" />
+                  <Cpu className="w-4 h-4 absolute translate-y-2 -translate-x-1" />
+                </div>
+              )}
             </div>
             <div>
               <div className="flex items-center gap-1.5">
                 <span className="font-extrabold text-xl tracking-wider text-slate-800 font-display">AEROB</span>
                 <span className="text-[10px] bg-indigo-100 text-indigo-700 font-bold font-mono px-2 py-0.5 rounded-full">CLUB</span>
               </div>
-              <p className="text-[10px] font-mono text-slate-400 tracking-widest uppercase">Aeromodeling & Robotic</p>
+              <p className="text-[10px] font-mono text-slate-400 tracking-widest uppercase">
+                {kopConfig.kopLine3 || 'Aeromodeling & Robotic'}
+              </p>
             </div>
           </div>
 
@@ -316,6 +342,7 @@ export default function App() {
               <HeroSection 
                 onOpenRegister={() => setIsRegisterOpen(true)}
                 onOpenAdminLogin={() => setIsAdminLoginOpen(true)}
+                kopConfig={kopConfig}
               />
             </motion.div>
           )}
@@ -347,11 +374,10 @@ export default function App() {
       <footer className="bg-[#eef2f7] border-t border-slate-200/50 py-8 px-6 text-center text-slate-500">
         <div className="max-w-4xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
           <div className="text-left text-xs md:text-sm">
-            <p className="font-bold text-slate-700">AEROB (Aeromodeling & Robotic Club)</p>
-            <p className="text-slate-400 mt-1">Gedung Pusat Kreativitas Mahasiswa, Kavling Dirgantara No. 12</p>
+            <p className="font-bold text-slate-700">AEROB (Aeromodeling & Robotic)</p>
           </div>
           <div className="text-xs text-slate-400 font-mono">
-            © 2026 AEROB. All Rights Reserved. Crafted with React & Tailwind CSS.
+            © 2026 AEROB
           </div>
         </div>
       </footer>

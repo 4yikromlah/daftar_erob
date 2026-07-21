@@ -5,14 +5,15 @@ import {
   Laptop, Sparkles, MessageCircle, ChevronDown, Check, ArrowRight 
 } from 'lucide-react';
 import { useState } from 'react';
-import { DivisionType } from '../types';
+import { DivisionType, KopConfig } from '../types';
 
 interface HeroSectionProps {
   onOpenRegister: () => void;
   onOpenAdminLogin: () => void;
+  kopConfig?: KopConfig;
 }
 
-export default function HeroSection({ onOpenRegister, onOpenAdminLogin }: HeroSectionProps) {
+export default function HeroSection({ onOpenRegister, onOpenAdminLogin, kopConfig }: HeroSectionProps) {
   const [activeFaq, setActiveFaq] = useState<number | null>(null);
 
   const toggleFaq = (index: number) => {
@@ -48,9 +49,9 @@ export default function HeroSection({ onOpenRegister, onOpenAdminLogin }: HeroSe
     {
       day: "Kamis",
       time: "15:30 - 17:30 WIB",
-      type: "Kelas Teori & Simulasi CAD",
-      place: "Lab Desain Komputer (Gedung B Lt. 3)",
-      desc: "Membahas konsep dasar aerodinamika, pemrograman mikrokomputer, sirkuit IoT, dan perancangan desain 3D CAD."
+      type: "Kelas Teori",
+      place: "Lab Komputer",
+      desc: "Membahas konsep dasar aerodinamika, pemrograman mikrokomputer, dan sirkuit IoT"
     }
   ];
 
@@ -58,10 +59,6 @@ export default function HeroSection({ onOpenRegister, onOpenAdminLogin }: HeroSe
     {
       question: "Apakah saya harus memiliki latar belakang pemrograman atau kedirgantaraan?",
       answer: "Sama sekali tidak! AEROB dirancang terbuka bagi pemula. Kami memiliki silabus dasar mingguan yang membimbing Anda mulai dari nol—dari memegang solder & mengunggah kode pertama Anda, hingga merakit sasis pesawat model mandiri."
-    },
-    {
-      question: "Apakah komponen praktek robotika & pesawat disediakan secara gratis?",
-      answer: "Ya! Semua peralatan penunjang utama seperti kit Arduino, sensor sirkuit, baterai LiPo, 3D printer, balsa wood, dan remote control pemancar disediakan oleh klub di laboratorium pengerjaan."
     },
     {
       question: "Bagaimana proses seleksi penerimaan anggota baru?",
@@ -85,22 +82,47 @@ export default function HeroSection({ onOpenRegister, onOpenAdminLogin }: HeroSe
         className="flex flex-col items-center justify-center text-center max-w-3xl mx-auto"
       >
         <div className="flex items-center gap-3 mb-4">
-          {/* AEROB Logo Icon (Claymorphic Style) */}
-          <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-blue-500 to-indigo-600 flex items-center justify-center text-white shadow-lg border border-white/30 relative overflow-hidden group">
-            <motion.div
-              animate={{ rotate: 360 }}
-              transition={{ repeat: Infinity, duration: 15, ease: 'linear' }}
-              className="absolute inset-0 opacity-10 bg-[radial-gradient(circle,rgba(255,255,255,0.8)_1px,transparent_1px)] bg-[size:10px_10px]"
-            />
-            <Plane className="w-6 h-6 absolute -translate-y-1.5 translate-x-1.5 text-white/95" />
-            <Cpu className="w-5 h-5 absolute translate-y-2.5 -translate-x-1.5 text-white/90" />
-          </div>
-          <div>
+          {/* AEROB & School Logos */}
+          {kopConfig?.schoolLogo || kopConfig?.orgLogo ? (
+            <div className="flex items-center gap-2.5">
+              {kopConfig.schoolLogo && (
+                <div className="relative group">
+                  <img
+                    src={kopConfig.schoolLogo}
+                    alt="Logo Sekolah"
+                    className="w-14 h-14 object-contain rounded-2xl bg-white p-1.5 shadow-lg border border-white/80 hover:scale-105 transition-all duration-300"
+                    referrerPolicy="no-referrer"
+                  />
+                </div>
+              )}
+              {kopConfig.orgLogo && (
+                <div className="relative group">
+                  <img
+                    src={kopConfig.orgLogo}
+                    alt="Logo Organisasi"
+                    className="w-14 h-14 object-contain rounded-2xl bg-white p-1.5 shadow-lg border border-white/80 hover:scale-105 transition-all duration-300"
+                    referrerPolicy="no-referrer"
+                  />
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-blue-500 to-indigo-600 flex items-center justify-center text-white shadow-lg border border-white/30 relative overflow-hidden group">
+              <motion.div
+                animate={{ rotate: 360 }}
+                transition={{ repeat: Infinity, duration: 15, ease: 'linear' }}
+                className="absolute inset-0 opacity-10 bg-[radial-gradient(circle,rgba(255,255,255,0.8)_1px,transparent_1px)] bg-[size:10px_10px]"
+              />
+              <Plane className="w-6 h-6 absolute -translate-y-1.5 translate-x-1.5 text-white/95" />
+              <Cpu className="w-5 h-5 absolute translate-y-2.5 -translate-x-1.5 text-white/90" />
+            </div>
+          )}
+          <div className="text-left">
             <h1 className="text-3xl font-extrabold tracking-wider bg-gradient-to-r from-blue-600 via-indigo-600 to-cyan-500 bg-clip-text text-transparent font-display">
               AEROB
             </h1>
             <p className="text-[10px] font-mono uppercase tracking-widest text-slate-500 font-bold">
-              Aeromodeling & Robotic Club
+              {kopConfig?.kopLine3 || 'SMAN 1 BONDOWOSO'}
             </p>
           </div>
         </div>
@@ -274,7 +296,7 @@ export default function HeroSection({ onOpenRegister, onOpenAdminLogin }: HeroSe
       </div>
 
       {/* Schedule Section */}
-      <div className="space-y-6">
+      <div className="space-y-6 max-w-3xl mx-auto">
         <div className="text-center">
           <span className="text-xs font-mono font-bold text-emerald-600 bg-emerald-50 px-3 py-1 rounded-full border border-emerald-100">
             JADWAL KEGIATAN RUTIN
@@ -287,10 +309,11 @@ export default function HeroSection({ onOpenRegister, onOpenAdminLogin }: HeroSe
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {schedules.map((sch, idx) => (
-            <div key={idx} className="neu-flat p-6 rounded-2xl border border-white/60 space-y-4">
-              <div className="flex items-center justify-between border-b pb-3 border-slate-200/60">
+        <div className="flex justify-center w-full">
+          <div className={`grid gap-6 w-full mx-auto ${schedules.length === 1 ? 'max-w-2xl' : 'grid-cols-1 md:grid-cols-2'}`}>
+            {schedules.map((sch, idx) => (
+              <div key={idx} className="neu-flat p-6 rounded-2xl border border-white/60 space-y-4 flex flex-col items-center text-center">
+              <div className="flex items-center justify-center gap-3 border-b pb-3 border-slate-200/60 w-full">
                 <div className="flex items-center gap-2">
                   <div className="bg-indigo-600 text-white text-xs font-mono font-extrabold px-3 py-1 rounded-lg">
                     Hari {sch.day}
@@ -300,9 +323,9 @@ export default function HeroSection({ onOpenRegister, onOpenAdminLogin }: HeroSe
                 <Calendar className="w-4 h-4 text-slate-400" />
               </div>
               
-              <div className="space-y-1.5">
+              <div className="space-y-1.5 flex flex-col items-center text-center w-full">
                 <h4 className="font-extrabold text-slate-800 text-base font-display">{sch.type}</h4>
-                <div className="flex items-center gap-1.5 text-xs text-indigo-700 font-semibold bg-indigo-50 w-fit px-2.5 py-0.5 rounded-md border border-indigo-100">
+                <div className="flex items-center gap-1.5 text-xs text-indigo-700 font-semibold bg-indigo-50 px-2.5 py-0.5 rounded-md border border-indigo-100 mx-auto">
                   <MapPin className="w-3 h-3" /> {sch.place}
                 </div>
                 <p className="text-xs text-slate-600 mt-2 leading-relaxed">
@@ -313,6 +336,7 @@ export default function HeroSection({ onOpenRegister, onOpenAdminLogin }: HeroSe
           ))}
         </div>
       </div>
+    </div>
 
       {/* FAQ Accordion Section */}
       <div className="space-y-6 max-w-3xl mx-auto">

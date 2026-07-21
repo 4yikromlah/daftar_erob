@@ -90,6 +90,15 @@ export default function AdminPanel({
     triggerSuccess(`Logo ${type === 'org' ? 'Organisasi' : 'Sekolah'} berhasil di-reset ke default!`);
   };
 
+  const handleRemoveLogo = (type: 'org' | 'school') => {
+    if (type === 'org') {
+      onUpdateKopConfig({ ...kopConfig, orgLogo: '' });
+    } else {
+      onUpdateKopConfig({ ...kopConfig, schoolLogo: '' });
+    }
+    triggerSuccess(`Logo ${type === 'org' ? 'Organisasi' : 'Sekolah'} berhasil dihapus!`);
+  };
+
   const handleSaveKopConfig = (e: React.FormEvent) => {
     e.preventDefault();
     onUpdateKopConfig({
@@ -110,9 +119,9 @@ export default function AdminPanel({
         orgLogo: defaultOrg,
         schoolLogo: defaultSchool,
         kopLine1: 'ORGANISASI INTRA SEKOLAH (OSIS) / KLUB EKSTRAKURIKULER',
-        kopLine2: 'KLUB AEROMODELING & ROBOTIKA (AEROB) MALANG',
-        kopLine3: 'SEKOLAH MENENGAH ATAS NEGERI 3 MALANG',
-        kopLine4: 'Sekretariat: Jl. Tugu No. 18, Malang, Jawa Timur. Telp/WA: 081234567890'
+        kopLine2: 'KLUB AEROMODELING & ROBOTIKA (AEROB) BONDOWOSO',
+        kopLine3: 'SMAN 1 BONDOWOSO',
+        kopLine4: 'Sekretariat: SMAN 1 Bondowoso, Jawa Timur'
       });
       triggerSuccess('Konfigurasi KOP berhasil di-reset!');
     }
@@ -770,6 +779,14 @@ function doGet(e) {
                       >
                         <RotateCcw className="w-4 h-4" />
                       </button>
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveLogo('org')}
+                        className="p-2 border border-rose-200 text-rose-500 hover:text-rose-600 rounded-lg hover:bg-rose-50 transition-all cursor-pointer"
+                        title="Hapus logo"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
                     </div>
                     <p className="text-[10px] text-slate-400">File maksimal 1MB, format transparan direkomendasikan.</p>
                   </div>
@@ -805,6 +822,14 @@ function doGet(e) {
                         title="Reset ke logo default"
                       >
                         <RotateCcw className="w-4 h-4" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveLogo('school')}
+                        className="p-2 border border-rose-200 text-rose-500 hover:text-rose-600 rounded-lg hover:bg-rose-50 transition-all cursor-pointer"
+                        title="Hapus logo"
+                      >
+                        <Trash2 className="w-4 h-4" />
                       </button>
                     </div>
                     <p className="text-[10px] text-slate-400">File maksimal 1MB, format transparan direkomendasikan.</p>
@@ -1018,13 +1043,13 @@ function doGet(e) {
                       {localKop1 || 'ORGANISASI INTRA SEKOLAH (OSIS) / KLUB EKSTRAKURIKULER'}
                     </div>
                     <div className="text-[12px] font-extrabold text-slate-900 leading-tight uppercase mt-0.5">
-                      {localKop2 || 'KLUB AEROMODELING & ROBOTIKA (AEROB) MALANG'}
+                      {localKop2 || 'KLUB AEROMODELING & ROBOTIKA (AEROB) BONDOWOSO'}
                     </div>
                     <div className="text-[11px] font-bold text-slate-800 leading-tight mt-0.5">
-                      {localKop3 || 'SEKOLAH MENENGAH ATAS NEGERI 3 MALANG'}
+                      {localKop3 || 'SMAN 1 BONDOWOSO'}
                     </div>
                     <div className="text-[8px] text-slate-400 mt-1 leading-relaxed">
-                      {localKop4 || 'Sekretariat: Jl. Tugu No. 18, Malang, Jawa Timur. Telp/WA: 081234567890'}
+                      {localKop4 || 'Sekretariat: SMAN 1 Bondowoso, Jawa Timur'}
                     </div>
                   </div>
                   
@@ -1124,7 +1149,7 @@ function doGet(e) {
                     {/* Siswa Column */}
                     <div className="text-center flex flex-col items-center">
                       <div className="invisible select-none leading-normal">
-                        Malang, {new Date().toLocaleDateString('id-ID', { year: 'numeric', month: 'long', day: 'numeric' })}
+                        Bondowoso, {new Date().toLocaleDateString('id-ID', { year: 'numeric', month: 'long', day: 'numeric' })}
                       </div>
                       <div className="text-slate-800 font-medium">Siswa Pendaftar,</div>
                       {/* Generous space for signing */}
@@ -1137,7 +1162,7 @@ function doGet(e) {
                     {/* Orang Tua / Wali Column */}
                     <div className="text-center flex flex-col items-center">
                       <div className="text-slate-600 leading-normal">
-                        Malang, {new Date().toLocaleDateString('id-ID', { year: 'numeric', month: 'long', day: 'numeric' })}
+                        Bondowoso, {new Date().toLocaleDateString('id-ID', { year: 'numeric', month: 'long', day: 'numeric' })}
                       </div>
                       <div className="text-slate-800 font-medium">Orang Tua / Wali,</div>
                       {/* Generous space for signing */}

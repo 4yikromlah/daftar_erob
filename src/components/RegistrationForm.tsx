@@ -196,7 +196,7 @@ export default function RegistrationForm({
       doc.setTextColor(30, 41, 59);
 
       // Date location
-      const dateStr = `Malang, ${new Date().toLocaleDateString('id-ID', { year: 'numeric', month: 'long', day: 'numeric' })}`;
+      const dateStr = `Bondowoso, ${new Date().toLocaleDateString('id-ID', { year: 'numeric', month: 'long', day: 'numeric' })}`;
       doc.text(dateStr, 150, sigY, { align: 'center' });
 
       // Labels should be in normal (regular) font-weight to match the image exactly
@@ -373,7 +373,7 @@ export default function RegistrationForm({
                     id="kelas"
                     type="text"
                     required
-                    placeholder="Contoh: XII IPA 3 atau XI Teknik Mesin"
+                    placeholder="Contoh: SMPN ........."
                     value={kelas}
                     onChange={(e) => setKelas(e.target.value)}
                     className="w-full px-4 py-3 rounded-xl text-slate-700 bg-[#edf2f8] shadow-[inset_2px_2px_4px_#d1d9e6,inset_-2px_-2px_4px_#ffffff] focus:shadow-[inset_3px_3px_6px_#b8c4d6,inset_-3px_-3px_6px_#ffffff] focus:outline-none transition-all duration-200 border border-transparent focus:border-blue-300 text-sm"
@@ -477,7 +477,7 @@ export default function RegistrationForm({
 
                 <div>
                   <label htmlFor="institution" className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-2">
-                    Asal Sekolah / Universitas / Jurusan <span className="text-red-500">*</span>
+                    Asal Sekolah <span className="text-red-500">*</span>
                   </label>
                   <input
                     id="institution"
@@ -491,53 +491,6 @@ export default function RegistrationForm({
                 </div>
               </div>
 
-              {/* Sub-division Selection (Unified Adaptive Cards with category badge indicators) */}
-              <div className="space-y-3">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
-                  <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider">
-                    Pilih Spesialisasi / Sub-Divisi <span className="text-red-500">*</span>
-                  </label>
-                  <span className="text-[11px] text-slate-400 font-mono">
-                    Semua divisi tergabung dalam satu pendaftaran
-                  </span>
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {allSubDivisions.map((sub) => {
-                    const isSelected = subDivision === sub.name;
-                    return (
-                      <button
-                        id={`subdiv-${sub.name.replace(/\s+/g, '-').toLowerCase()}`}
-                        key={sub.name}
-                        type="button"
-                        onClick={() => handleSelectSubDivision(sub.name, sub.division)}
-                        className={`text-left p-4 rounded-2xl border text-sm transition-all duration-300 flex flex-col justify-between min-h-[102px] relative overflow-hidden ${
-                          isSelected
-                            ? sub.division === 'Aeromodeling'
-                              ? 'bg-blue-50/90 border-blue-400 text-blue-950 shadow-md ring-2 ring-blue-300/50'
-                              : 'bg-orange-50/90 border-orange-400 text-orange-950 shadow-md ring-2 ring-orange-300/50'
-                            : 'bg-[#f4f7fa] border-slate-200 text-slate-700 hover:bg-slate-50'
-                        }`}
-                      >
-                        <div className="w-full">
-                          <div className="flex items-start justify-between gap-2 mb-1.5">
-                            <span className="font-bold text-sm leading-snug pr-14">{sub.name}</span>
-                            <span className={`text-[9px] font-mono font-bold uppercase tracking-wider px-2 py-0.5 rounded-full absolute top-3.5 right-3.5 ${
-                              sub.division === 'Aeromodeling'
-                                ? 'bg-blue-100 text-blue-700 border border-blue-200'
-                                : 'bg-orange-100 text-orange-700 border border-orange-200'
-                            }`}>
-                              {sub.division === 'Aeromodeling' ? 'Aero' : 'Robot'}
-                            </span>
-                          </div>
-                          <p className="text-[11px] text-slate-500 leading-normal">
-                            {sub.desc}
-                          </p>
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
 
               {/* Experience Level */}
               <div>
