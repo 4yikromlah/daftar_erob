@@ -264,7 +264,6 @@ export default function App() {
             <div>
               <div className="flex items-center gap-1.5">
                 <span className="font-extrabold text-xl tracking-wider text-slate-800 font-display">AEROB</span>
-                <span className="text-[10px] bg-indigo-100 text-indigo-700 font-bold font-mono px-2 py-0.5 rounded-full">CLUB</span>
               </div>
               <p className="text-[10px] font-mono text-slate-400 tracking-widest uppercase">
                 {kopConfig.kopLine3 || 'Aeromodeling & Robotic'}
