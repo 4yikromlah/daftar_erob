@@ -57,12 +57,12 @@ export default function HeroSection({ onOpenRegister, onOpenAdminLogin, kopConfi
 
   const faqs = [
     {
-      question: "Apakah saya harus memiliki latar belakang pemrograman atau kedirgantaraan?",
-      answer: "Sama sekali tidak! AEROB dirancang terbuka bagi pemula. Kami memiliki silabus dasar mingguan yang membimbing Anda mulai dari nol—dari memegang solder & mengunggah kode pertama Anda, hingga merakit sasis pesawat model mandiri."
+      question: "Apakah saya harus memiliki latar belakang pemrograman?",
+      answer: "Sama sekali tidak! AEROB dirancang terbuka bagi pemula. Kami memiliki silabus dasar mingguan yang membimbing Anda mulai dari nol—dari memegang solder & mengunggah kode pertama Anda, hingga merakit robot mandiri."
     },
     {
       question: "Bagaimana proses seleksi penerimaan anggota baru?",
-      answer: "Pendaftaran terpadu ini tidak melakukan eliminasi fisik. Proses administrasi dan wawancara singkat murni ditujukan untuk memetakan minat dasar Anda (apakah condong ke Aeromodeling atau Robotics) agar distribusi kelompok belajar dapat berjalan seimbang."
+      answer: "Pendaftaran terpadu ini tidak melakukan eliminasi fisik. Proses administrasi dan tes atau wawancara singkat murni ditujukan untuk memetakan minat dasar Anda."
     },
     {
       question: "Dapatkah saya mengikuti kedua divisi sekaligus?",

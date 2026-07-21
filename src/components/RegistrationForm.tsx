@@ -133,7 +133,6 @@ export default function RegistrationForm({
         ['Email', registeredData.email],
         ['WhatsApp', registeredData.whatsapp],
         ['Asal Instansi / Sekolah', registeredData.institution],
-        ['Divisi Pilihan', `${registeredData.division} (${registeredData.subDivision})`],
         ['Tingkat Pemahaman', registeredData.experienceLevel],
       ];
 
@@ -217,7 +216,7 @@ export default function RegistrationForm({
   };
 
   const handlePrintTicket = () => {
-    window.print();
+    handleDownloadTicket();
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -644,17 +643,6 @@ export default function RegistrationForm({
                 <span className="text-slate-400 font-sans">Cita-cita</span>
                 <span className="col-span-2 font-bold text-slate-800">
                   {registeredData.citaCita}
-                </span>
-              </div>
-              <div className="grid grid-cols-3 text-xs">
-                <span className="text-slate-400">Pilihan Divisi</span>
-                <span className="col-span-2 font-bold text-slate-800 flex items-center gap-1">
-                  {registeredData.division === 'Aeromodeling' ? (
-                    <Plane className="w-3.5 h-3.5 text-blue-500" />
-                  ) : (
-                    <Cpu className="w-3.5 h-3.5 text-orange-500" />
-                  )}
-                  {registeredData.division} ({registeredData.subDivision})
                 </span>
               </div>
               <div className="grid grid-cols-3 text-xs">
