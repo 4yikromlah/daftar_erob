@@ -483,7 +483,7 @@ export default function RegistrationForm({
                     id="institution"
                     type="text"
                     required
-                    placeholder="Contoh: SMA Negeri 1 Malang / Institut Teknologi Sepuluh Nopember"
+                    placeholder="Contoh: SMP Negeri 1 Malang"
                     value={institution}
                     onChange={(e) => setInstitution(e.target.value)}
                     className="w-full px-4 py-3 rounded-xl text-slate-700 bg-[#edf2f8] shadow-[inset_2px_2px_4px_#d1d9e6,inset_-2px_-2px_4px_#ffffff] focus:shadow-[inset_3px_3px_6px_#b8c4d6,inset_-3px_-3px_6px_#ffffff] focus:outline-none transition-all duration-200 border border-transparent focus:border-blue-300 text-sm"
