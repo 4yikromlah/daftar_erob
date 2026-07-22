@@ -72,7 +72,7 @@ export default function AdminLogin({ onClose, onLoginSuccess }: AdminLoginProps)
             Autentikasi Administrator
           </h3>
           <p className="text-slate-500 text-xs mt-1">
-            Silakan masukkan kredensial administrator klub Anda untuk mengelola pendaftaran anggota.
+            Silakan masukkan kredensial administrator untuk mengelola pendaftaran anggota.
           </p>
         </div>
 
@@ -129,18 +129,6 @@ export default function AdminLogin({ onClose, onLoginSuccess }: AdminLoginProps)
                     onChange={(e) => setPassword(e.target.value)}
                     className="w-full pl-11 pr-4 py-3 rounded-xl text-slate-700 bg-[#edf2f8] shadow-[inset_2px_2px_4px_#d1d9e6,inset_-2px_-2px_4px_#ffffff] focus:shadow-[inset_3px_3px_6px_#b8c4d6,inset_-3px_-3px_6px_#ffffff] focus:outline-none transition-all duration-200 border border-transparent focus:border-blue-300 text-sm"
                   />
-                </div>
-              </div>
-
-              {/* Help Hint */}
-              <div className="p-3 bg-slate-100/80 rounded-xl border border-slate-200/50 text-[10px] text-slate-500 leading-normal font-mono flex items-start gap-1.5 shadow-sm">
-                <ShieldAlert className="w-3.5 h-3.5 text-indigo-500 shrink-0 mt-0.5" />
-                <div>
-                  <span className="font-extrabold text-indigo-700">Petunjuk Akses:</span>
-                  <br />
-                  Username: <code className="bg-slate-200 px-1 rounded font-bold">admin_aerob</code>
-                  <br />
-                  Password: <code className="bg-slate-200 px-1 rounded font-bold">aerob2026</code>
                 </div>
               </div>
 
