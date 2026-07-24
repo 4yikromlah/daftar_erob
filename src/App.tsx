@@ -123,35 +123,14 @@ export default function App() {
   const [isAdminLoginOpen, setIsAdminLoginOpen] = useState(false);
   const [isAdminLoggedIn, setIsAdminLoggedIn] = useState(false);
 
-  // Load initial Kop Config from LocalStorage or default
-  const [kopConfig, setKopConfig] = useState<KopConfig>(() => {
-    if (typeof window !== 'undefined') {
-      const stored = localStorage.getItem(LOCAL_STORAGE_KOP_KEY);
-      if (stored) {
-        try {
-          const parsed = JSON.parse(stored);
-          return {
-            ...parsed,
-            orgLogo: parsed.orgLogo !== undefined ? parsed.orgLogo : generateAerobLogo(),
-            schoolLogo: parsed.schoolLogo !== undefined ? parsed.schoolLogo : generateSchoolLogo(),
-            kopLine1: parsed.kopLine1 || 'ORGANISASI INTRA SEKOLAH (OSIS) / KLUB EKSTRAKURIKULER',
-            kopLine2: parsed.kopLine2?.includes('MALANG') ? 'KLUB AEROMODELING & ROBOTIKA (AEROB) BONDOWOSO' : (parsed.kopLine2 || 'KLUB AEROMODELING & ROBOTIKA (AEROB) BONDOWOSO'),
-            kopLine3: parsed.kopLine3 || 'SMAN 1 BONDOWOSO',
-            kopLine4: parsed.kopLine4 || 'Sekretariat: SMAN 1 Bondowoso, Jawa Timur'
-          };
-        } catch (e) {
-          console.error('Failed to parse kop config', e);
-        }
-      }
-    }
-    return {
-      orgLogo: generateAerobLogo(),
-      schoolLogo: generateSchoolLogo(),
-      kopLine1: 'ORGANISASI INTRA SEKOLAH (OSIS) / KLUB EKSTRAKURIKULER',
-      kopLine2: 'KLUB AEROMODELING & ROBOTIKA (AEROB) BONDOWOSO',
-      kopLine3: 'SMAN 1 BONDOWOSO',
-      kopLine4: 'Sekretariat: SMAN 1 Bondowoso, Jawa Timur'
-    };
+  // Initial Kop Config
+  const [kopConfig, setKopConfig] = useState<KopConfig>({
+    orgLogo: generateAerobLogo(),
+    schoolLogo: generateSchoolLogo(),
+    kopLine1: 'ORGANISASI INTRA SEKOLAH (OSIS) / KLUB EKSTRAKURIKULER',
+    kopLine2: 'KLUB AEROMODELING & ROBOTIKA (AEROB) BONDOWOSO',
+    kopLine3: 'SMAN 1 BONDOWOSO',
+    kopLine4: 'Sekretariat: SMAN 1 Bondowoso, Jawa Timur'
   });
 
   const getEnvScriptUrl = (): string => {
@@ -175,30 +154,14 @@ export default function App() {
       const urlParams = new URLSearchParams(window.location.search);
       const paramUrl = urlParams.get('scriptUrl') || urlParams.get('appScriptUrl') || urlParams.get('script');
       if (paramUrl && paramUrl.trim().startsWith('https://')) {
-        const clean = paramUrl.trim();
-        localStorage.setItem('aerob_appscript_url_v1', clean);
-        return clean;
-      }
-
-      const stored = localStorage.getItem('aerob_appscript_url_v1');
-      if (stored && stored.trim().startsWith('https://')) {
-        return stored.trim();
+        return paramUrl.trim();
       }
     }
     return getEnvScriptUrl();
   });
 
-  // Ensure both org and school logos are generated on mount if missing and sync from Google Apps Script
+  // Sync from Google Apps Script on mount if URL configured
   useEffect(() => {
-    const updated = {
-      ...kopConfig,
-      orgLogo: kopConfig.orgLogo || generateAerobLogo(),
-      schoolLogo: kopConfig.schoolLogo || generateSchoolLogo(),
-      kopLine3: kopConfig.kopLine3 || 'SMAN 1 BONDOWOSO'
-    };
-    setKopConfig(updated);
-    localStorage.setItem(LOCAL_STORAGE_KOP_KEY, JSON.stringify(updated));
-
     const activeUrl = appScriptUrl || getEnvScriptUrl();
     if (activeUrl && activeUrl.trim().startsWith('https://')) {
       handleSyncFromSpreadsheet(activeUrl);
@@ -207,7 +170,6 @@ export default function App() {
 
   const handleUpdateKopConfig = (newConfig: KopConfig) => {
     setKopConfig(newConfig);
-    localStorage.setItem(LOCAL_STORAGE_KOP_KEY, JSON.stringify(newConfig));
 
     // Sync config to Google Apps Script if connected so all gadgets receive updated settings
     const activeUrl = appScriptUrl || getEnvScriptUrl();
@@ -226,7 +188,6 @@ export default function App() {
   const handleUpdateAppScriptUrl = (url: string) => {
     const cleanUrl = url.trim();
     setAppScriptUrl(cleanUrl);
-    localStorage.setItem('aerob_appscript_url_v1', cleanUrl);
     if (cleanUrl.startsWith('https://')) {
       handleSyncFromSpreadsheet(cleanUrl);
     }
@@ -336,7 +297,6 @@ export default function App() {
             kopLine3: (remoteConfig.kopLine3 && remoteConfig.kopLine3.trim() !== '') ? remoteConfig.kopLine3 : prev.kopLine3,
             kopLine4: (remoteConfig.kopLine4 && remoteConfig.kopLine4.trim() !== '') ? remoteConfig.kopLine4 : prev.kopLine4
           };
-          localStorage.setItem(LOCAL_STORAGE_KOP_KEY, JSON.stringify(mergedConfig));
           return mergedConfig;
         });
       }
@@ -375,9 +335,7 @@ export default function App() {
             }
           });
 
-          const merged = Array.from(existingMap.values());
-          localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(merged));
-          return merged;
+          return Array.from(existingMap.values());
         });
 
         return {
@@ -415,7 +373,6 @@ export default function App() {
       if (urlParam && urlParam.trim().startsWith('https://')) {
         const cleanUrl = urlParam.trim();
         setAppScriptUrl(cleanUrl);
-        localStorage.setItem('aerob_appscript_url_v1', cleanUrl);
         handleSyncFromSpreadsheet(cleanUrl);
         return;
       }
@@ -426,47 +383,31 @@ export default function App() {
     }
   }, [appScriptUrl]);
 
-  // Load registrations from LocalStorage on mount
+  // Initial registrations on mount
   useEffect(() => {
-    const stored = localStorage.getItem(LOCAL_STORAGE_KEY);
-    if (stored) {
-      try {
-        setRegistrations(JSON.parse(stored));
-      } catch (e) {
-        console.error('Failed to parse registrations', e);
-        setRegistrations([]);
-      }
-    } else {
-      // Initialize with mock data to make the app looks great instantly
-      setRegistrations(MOCK_REGISTRATIONS);
-      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(MOCK_REGISTRATIONS));
-    }
+    setRegistrations(MOCK_REGISTRATIONS);
   }, []);
 
   // Save registration helper
   const handleAddRegistration = (newData: RegistrationData) => {
     const updated = [newData, ...registrations];
     setRegistrations(updated);
-    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(updated));
   };
 
   // Delete registration helper
   const handleDeleteRegistration = (id: string) => {
     const updated = registrations.filter(r => r.id !== id);
     setRegistrations(updated);
-    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(updated));
   };
 
   // Clear all database
   const handleClearAll = () => {
     setRegistrations([]);
-    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify([]));
   };
 
   // Seed mock registrations helper
   const handleSeedMockData = () => {
     setRegistrations(MOCK_REGISTRATIONS);
-    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(MOCK_REGISTRATIONS));
   };
 
   // Start registration helper from Hero card click
