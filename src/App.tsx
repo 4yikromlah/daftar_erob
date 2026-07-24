@@ -123,14 +123,34 @@ export default function App() {
   const [isAdminLoginOpen, setIsAdminLoginOpen] = useState(false);
   const [isAdminLoggedIn, setIsAdminLoggedIn] = useState(false);
 
-  // Initial Kop Config
-  const [kopConfig, setKopConfig] = useState<KopConfig>({
-    orgLogo: generateAerobLogo(),
-    schoolLogo: generateSchoolLogo(),
-    kopLine1: 'ORGANISASI INTRA SEKOLAH (OSIS) / KLUB EKSTRAKURIKULER',
-    kopLine2: 'KLUB AEROMODELING & ROBOTIKA (AEROB) BONDOWOSO',
-    kopLine3: 'SMAN 1 BONDOWOSO',
-    kopLine4: 'Sekretariat: SMAN 1 Bondowoso, Jawa Timur'
+  // Initial Kop Config with LocalStorage persistence
+  const [kopConfig, setKopConfig] = useState<KopConfig>(() => {
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem(LOCAL_STORAGE_KOP_KEY);
+      if (stored) {
+        try {
+          const parsed = JSON.parse(stored);
+          return {
+            orgLogo: parsed.orgLogo !== undefined ? parsed.orgLogo : generateAerobLogo(),
+            schoolLogo: parsed.schoolLogo !== undefined ? parsed.schoolLogo : generateSchoolLogo(),
+            kopLine1: parsed.kopLine1 || 'ORGANISASI INTRA SEKOLAH (OSIS) / KLUB EKSTRAKURIKULER',
+            kopLine2: parsed.kopLine2 || 'KLUB AEROMODELING & ROBOTIKA (AEROB) BONDOWOSO',
+            kopLine3: parsed.kopLine3 || 'SMAN 1 BONDOWOSO',
+            kopLine4: parsed.kopLine4 || 'Sekretariat: SMAN 1 Bondowoso, Jawa Timur'
+          };
+        } catch (e) {
+          console.error('Failed to parse kop config from storage', e);
+        }
+      }
+    }
+    return {
+      orgLogo: generateAerobLogo(),
+      schoolLogo: generateSchoolLogo(),
+      kopLine1: 'ORGANISASI INTRA SEKOLAH (OSIS) / KLUB EKSTRAKURIKULER',
+      kopLine2: 'KLUB AEROMODELING & ROBOTIKA (AEROB) BONDOWOSO',
+      kopLine3: 'SMAN 1 BONDOWOSO',
+      kopLine4: 'Sekretariat: SMAN 1 Bondowoso, Jawa Timur'
+    };
   });
 
   const getEnvScriptUrl = (): string => {
@@ -154,7 +174,13 @@ export default function App() {
       const urlParams = new URLSearchParams(window.location.search);
       const paramUrl = urlParams.get('scriptUrl') || urlParams.get('appScriptUrl') || urlParams.get('script');
       if (paramUrl && paramUrl.trim().startsWith('https://')) {
-        return paramUrl.trim();
+        const clean = paramUrl.trim();
+        localStorage.setItem('aerob_appscript_url_v1', clean);
+        return clean;
+      }
+      const stored = localStorage.getItem('aerob_appscript_url_v1');
+      if (stored && stored.trim().startsWith('https://')) {
+        return stored.trim();
       }
     }
     return getEnvScriptUrl();
@@ -170,6 +196,9 @@ export default function App() {
 
   const handleUpdateKopConfig = (newConfig: KopConfig) => {
     setKopConfig(newConfig);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(LOCAL_STORAGE_KOP_KEY, JSON.stringify(newConfig));
+    }
 
     // Sync config to Google Apps Script if connected so all gadgets receive updated settings
     const activeUrl = appScriptUrl || getEnvScriptUrl();
@@ -188,6 +217,9 @@ export default function App() {
   const handleUpdateAppScriptUrl = (url: string) => {
     const cleanUrl = url.trim();
     setAppScriptUrl(cleanUrl);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('aerob_appscript_url_v1', cleanUrl);
+    }
     if (cleanUrl.startsWith('https://')) {
       handleSyncFromSpreadsheet(cleanUrl);
     }
@@ -286,7 +318,7 @@ export default function App() {
         }
       }
 
-      // If remote config exists from Google Apps Script, update local kopConfig without wiping custom local logos
+      // If remote config exists from Google Apps Script, update local kopConfig
       if (remoteConfig && typeof remoteConfig === 'object') {
         setKopConfig(prev => {
           const mergedConfig: KopConfig = {
@@ -297,6 +329,9 @@ export default function App() {
             kopLine3: (remoteConfig.kopLine3 && remoteConfig.kopLine3.trim() !== '') ? remoteConfig.kopLine3 : prev.kopLine3,
             kopLine4: (remoteConfig.kopLine4 && remoteConfig.kopLine4.trim() !== '') ? remoteConfig.kopLine4 : prev.kopLine4
           };
+          if (typeof window !== 'undefined') {
+            localStorage.setItem(LOCAL_STORAGE_KOP_KEY, JSON.stringify(mergedConfig));
+          }
           return mergedConfig;
         });
       }
@@ -335,7 +370,11 @@ export default function App() {
             }
           });
 
-          return Array.from(existingMap.values());
+          const merged = Array.from(existingMap.values());
+          if (typeof window !== 'undefined') {
+            localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(merged));
+          }
+          return merged;
         });
 
         return {
@@ -383,31 +422,57 @@ export default function App() {
     }
   }, [appScriptUrl]);
 
-  // Initial registrations on mount
+  // Initial registrations on mount with LocalStorage
   useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem(LOCAL_STORAGE_KEY);
+      if (stored) {
+        try {
+          setRegistrations(JSON.parse(stored));
+          return;
+        } catch (e) {
+          console.error('Failed to parse registrations', e);
+        }
+      }
+    }
     setRegistrations(MOCK_REGISTRATIONS);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(MOCK_REGISTRATIONS));
+    }
   }, []);
 
   // Save registration helper
   const handleAddRegistration = (newData: RegistrationData) => {
     const updated = [newData, ...registrations];
     setRegistrations(updated);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(updated));
+    }
   };
 
   // Delete registration helper
   const handleDeleteRegistration = (id: string) => {
     const updated = registrations.filter(r => r.id !== id);
     setRegistrations(updated);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(updated));
+    }
   };
 
   // Clear all database
   const handleClearAll = () => {
     setRegistrations([]);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify([]));
+    }
   };
 
   // Seed mock registrations helper
   const handleSeedMockData = () => {
     setRegistrations(MOCK_REGISTRATIONS);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(MOCK_REGISTRATIONS));
+    }
   };
 
   // Start registration helper from Hero card click

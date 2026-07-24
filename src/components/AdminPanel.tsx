@@ -218,13 +218,34 @@ function doPost(e) {
   try {
     var data = JSON.parse(e.postData.contents);
     
-    // Simpan Pengaturan Kop / Logo ke Tab "Pengaturan_Kop" secara permanen
+    // Simpan Pengaturan Kop / Logo ke Tab "Pengaturan_Kop" & Script Properties secara permanen
     if (data.action === 'saveConfig' && data.config) {
-      var configSheet = ss.getSheetByName("Pengaturan_Kop");
-      if (!configSheet) {
-        configSheet = ss.insertSheet("Pengaturan_Kop");
-      }
-      configSheet.getRange("A1").setValue(JSON.stringify(data.config));
+      // 1. Simpan ke Script Properties untuk kapasitas penuh & kecepatan tinggi
+      try {
+        PropertiesService.getScriptProperties().setProperty('AEROB_KOP_CONFIG', JSON.stringify(data.config));
+      } catch (errProp) {}
+
+      // 2. Simpan ke Tab "Pengaturan_Kop" di Spreadsheet (per baris agar tidak melebihi batas karakter sel)
+      try {
+        var configSheet = ss.getSheetByName("Pengaturan_Kop");
+        if (!configSheet) {
+          configSheet = ss.insertSheet("Pengaturan_Kop");
+        }
+        configSheet.clear();
+        configSheet.getRange("A1:B1").setValues([["Kunci Pengaturan", "Nilai Teks / Data"]]);
+        configSheet.getRange("A1:B1").setFontWeight("bold").setBackground("#2563eb").setFontColor("#ffffff");
+        
+        var rows = [
+          ["kopLine1", data.config.kopLine1 || ""],
+          ["kopLine2", data.config.kopLine2 || ""],
+          ["kopLine3", data.config.kopLine3 || ""],
+          ["kopLine4", data.config.kopLine4 || ""],
+          ["orgLogo", (data.config.orgLogo || "").substring(0, 49000)],
+          ["schoolLogo", (data.config.schoolLogo || "").substring(0, 49000)]
+        ];
+        configSheet.getRange(2, 1, rows.length, 2).setValues(rows);
+      } catch (errSheet) {}
+
       return ContentService.createTextOutput(JSON.stringify({ 
         status: 'success', 
         message: 'Pengaturan Kop berhasil disimpan secara permanen di Google Spreadsheet!' 
@@ -325,15 +346,34 @@ function doGet(e) {
   }
 
   var savedConfig = null;
+  // Coba ambil dari Script Properties dulu
   try {
-    var configSheet = ss.getSheetByName("Pengaturan_Kop");
-    if (configSheet && configSheet.getRange("A1").getValue()) {
-      savedConfig = JSON.parse(configSheet.getRange("A1").getValue());
-    } else {
-      var rawConfig = PropertiesService.getScriptProperties().getProperty('AEROB_KOP_CONFIG');
-      if (rawConfig) savedConfig = JSON.parse(rawConfig);
+    var rawConfig = PropertiesService.getScriptProperties().getProperty('AEROB_KOP_CONFIG');
+    if (rawConfig) {
+      savedConfig = JSON.parse(rawConfig);
     }
-  } catch (err) {}
+  } catch (errProp) {}
+
+  // Jika tidak ada di Script Properties, coba baca dari sheet "Pengaturan_Kop"
+  if (!savedConfig) {
+    try {
+      var configSheet = ss.getSheetByName("Pengaturan_Kop");
+      if (configSheet) {
+        var valA1 = configSheet.getRange("A1").getValue();
+        if (valA1 && String(valA1).startsWith("{")) {
+          savedConfig = JSON.parse(valA1);
+        } else if (configSheet.getLastRow() >= 2) {
+          var configRows = configSheet.getRange(2, 1, configSheet.getLastRow() - 1, 2).getValues();
+          savedConfig = {};
+          for (var c = 0; c < configRows.length; c++) {
+            if (configRows[c][0]) {
+              savedConfig[configRows[c][0]] = configRows[c][1];
+            }
+          }
+        }
+      }
+    } catch (errSheet) {}
+  }
   
   return ContentService.createTextOutput(JSON.stringify({
     registrations: result,
