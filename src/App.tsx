@@ -132,10 +132,12 @@ export default function App() {
           const parsed = JSON.parse(stored);
           return {
             ...parsed,
-            orgLogo: parsed.orgLogo || generateAerobLogo(),
-            schoolLogo: parsed.schoolLogo || generateSchoolLogo(),
+            orgLogo: parsed.orgLogo !== undefined ? parsed.orgLogo : generateAerobLogo(),
+            schoolLogo: parsed.schoolLogo !== undefined ? parsed.schoolLogo : generateSchoolLogo(),
+            kopLine1: parsed.kopLine1 || 'ORGANISASI INTRA SEKOLAH (OSIS) / KLUB EKSTRAKURIKULER',
             kopLine2: parsed.kopLine2?.includes('MALANG') ? 'KLUB AEROMODELING & ROBOTIKA (AEROB) BONDOWOSO' : (parsed.kopLine2 || 'KLUB AEROMODELING & ROBOTIKA (AEROB) BONDOWOSO'),
-            kopLine3: parsed.kopLine3 || 'SMAN 1 BONDOWOSO'
+            kopLine3: parsed.kopLine3 || 'SMAN 1 BONDOWOSO',
+            kopLine4: parsed.kopLine4 || 'Sekretariat: SMAN 1 Bondowoso, Jawa Timur'
           };
         } catch (e) {
           console.error('Failed to parse kop config', e);
@@ -323,18 +325,20 @@ export default function App() {
         }
       }
 
-      // If remote config exists from Google Apps Script, update local kopConfig
+      // If remote config exists from Google Apps Script, update local kopConfig without wiping custom local logos
       if (remoteConfig && typeof remoteConfig === 'object') {
-        const mergedConfig: KopConfig = {
-          orgLogo: remoteConfig.orgLogo || generateAerobLogo(),
-          schoolLogo: remoteConfig.schoolLogo || generateSchoolLogo(),
-          kopLine1: remoteConfig.kopLine1 !== undefined ? remoteConfig.kopLine1 : 'ORGANISASI INTRA SEKOLAH (OSIS) / KLUB EKSTRAKURIKULER',
-          kopLine2: remoteConfig.kopLine2 !== undefined ? remoteConfig.kopLine2 : 'KLUB AEROMODELING & ROBOTIKA (AEROB) BONDOWOSO',
-          kopLine3: remoteConfig.kopLine3 !== undefined ? remoteConfig.kopLine3 : 'SMAN 1 BONDOWOSO',
-          kopLine4: remoteConfig.kopLine4 !== undefined ? remoteConfig.kopLine4 : 'Sekretariat: SMAN 1 Bondowoso, Jawa Timur'
-        };
-        setKopConfig(mergedConfig);
-        localStorage.setItem(LOCAL_STORAGE_KOP_KEY, JSON.stringify(mergedConfig));
+        setKopConfig(prev => {
+          const mergedConfig: KopConfig = {
+            orgLogo: (remoteConfig.orgLogo && remoteConfig.orgLogo.trim().length > 10) ? remoteConfig.orgLogo : prev.orgLogo,
+            schoolLogo: (remoteConfig.schoolLogo && remoteConfig.schoolLogo.trim().length > 10) ? remoteConfig.schoolLogo : prev.schoolLogo,
+            kopLine1: (remoteConfig.kopLine1 && remoteConfig.kopLine1.trim() !== '') ? remoteConfig.kopLine1 : prev.kopLine1,
+            kopLine2: (remoteConfig.kopLine2 && remoteConfig.kopLine2.trim() !== '') ? remoteConfig.kopLine2 : prev.kopLine2,
+            kopLine3: (remoteConfig.kopLine3 && remoteConfig.kopLine3.trim() !== '') ? remoteConfig.kopLine3 : prev.kopLine3,
+            kopLine4: (remoteConfig.kopLine4 && remoteConfig.kopLine4.trim() !== '') ? remoteConfig.kopLine4 : prev.kopLine4
+          };
+          localStorage.setItem(LOCAL_STORAGE_KOP_KEY, JSON.stringify(mergedConfig));
+          return mergedConfig;
+        });
       }
 
       if (itemsList.length > 0 || Array.isArray(data) || (data && typeof data === 'object' && Array.isArray(data.registrations))) {

@@ -61,41 +61,59 @@ export default function AdminPanel({
     setLocalAppScriptUrl(appScriptUrl || '');
   }, [appScriptUrl]);
 
-  const compressLogoImage = (file: File): Promise<string> => {
-    return new Promise((resolve, reject) => {
+  const processLogoFile = (file: File): Promise<string> => {
+    return new Promise((resolve) => {
       const reader = new FileReader();
       reader.onload = (e) => {
+        const result = e.target?.result as string;
+        if (!result) {
+          resolve('');
+          return;
+        }
+
+        // If file is already under 500KB, return directly to preserve exact quality and transparency
+        if (file.size <= 500 * 1024) {
+          resolve(result);
+          return;
+        }
+
+        // Compress large image via canvas
         const img = new Image();
         img.onload = () => {
-          const canvas = document.createElement('canvas');
-          const MAX_SIZE = 250;
-          let width = img.width;
-          let height = img.height;
-          if (width > height) {
-            if (width > MAX_SIZE) {
-              height = Math.round((height * MAX_SIZE) / width);
-              width = MAX_SIZE;
+          try {
+            const canvas = document.createElement('canvas');
+            const MAX_SIZE = 300;
+            let width = img.width;
+            let height = img.height;
+            if (width > height) {
+              if (width > MAX_SIZE) {
+                height = Math.round((height * MAX_SIZE) / width);
+                width = MAX_SIZE;
+              }
+            } else {
+              if (height > MAX_SIZE) {
+                width = Math.round((width * MAX_SIZE) / height);
+                height = MAX_SIZE;
+              }
             }
-          } else {
-            if (height > MAX_SIZE) {
-              width = Math.round((width * MAX_SIZE) / height);
-              height = MAX_SIZE;
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            if (ctx) {
+              ctx.clearRect(0, 0, width, height);
+              ctx.drawImage(img, 0, 0, width, height);
+              resolve(canvas.toDataURL(file.type === 'image/jpeg' ? 'image/jpeg' : 'image/png'));
+              return;
             }
+          } catch (err) {
+            console.error('Error compressing image:', err);
           }
-          canvas.width = width;
-          canvas.height = height;
-          const ctx = canvas.getContext('2d');
-          if (ctx) {
-            ctx.drawImage(img, 0, 0, width, height);
-            resolve(canvas.toDataURL('image/png'));
-          } else {
-            resolve(e.target?.result as string);
-          }
+          resolve(result);
         };
-        img.onerror = () => resolve(e.target?.result as string);
-        img.src = e.target?.result as string;
+        img.onerror = () => resolve(result);
+        img.src = result;
       };
-      reader.onerror = (err) => reject(err);
+      reader.onerror = () => resolve('');
       reader.readAsDataURL(file);
     });
   };
@@ -105,19 +123,21 @@ export default function AdminPanel({
     if (!file) return;
 
     if (!file.type.startsWith('image/')) {
-      alert('File harus berupa gambar (PNG/JPEG)!');
+      alert('File harus berupa gambar (PNG/JPEG/SVG)!');
       return;
     }
 
     try {
-      const compressedBase64 = await compressLogoImage(file);
+      const base64String = await processLogoFile(file);
+      if (e.target) e.target.value = ''; // Reset file input so re-uploading works
+      
       const updatedConfig: KopConfig = {
         ...kopConfig,
         kopLine1: localKop1,
         kopLine2: localKop2,
         kopLine3: localKop3,
         kopLine4: localKop4,
-        [type === 'org' ? 'orgLogo' : 'schoolLogo']: compressedBase64
+        [type === 'org' ? 'orgLogo' : 'schoolLogo']: base64String
       };
       onUpdateKopConfig(updatedConfig);
       triggerSuccess(`Logo ${type === 'org' ? 'Organisasi' : 'Sekolah'} berhasil diperbarui & disimpan!`);
@@ -156,8 +176,8 @@ export default function AdminPanel({
   const handleSaveKopConfig = (e: React.FormEvent) => {
     e.preventDefault();
     const fullConfig: KopConfig = {
-      orgLogo: kopConfig.orgLogo || generateAerobLogo(),
-      schoolLogo: kopConfig.schoolLogo || generateSchoolLogo(),
+      orgLogo: kopConfig.orgLogo !== undefined ? kopConfig.orgLogo : generateAerobLogo(),
+      schoolLogo: kopConfig.schoolLogo !== undefined ? kopConfig.schoolLogo : generateSchoolLogo(),
       kopLine1: localKop1,
       kopLine2: localKop2,
       kopLine3: localKop3,
