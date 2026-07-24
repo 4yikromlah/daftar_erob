@@ -4,7 +4,7 @@ import {
   Plane, Cpu, ShieldCheck, Home, FileText, ClipboardList,
   Sparkles, CheckCircle2, ChevronRight, Copy, Check
 } from 'lucide-react';
-import { RegistrationData, DivisionType, KopConfig } from './types';
+import { RegistrationData, DivisionType, SubDivisionType, KopConfig } from './types';
 import { generateAerobLogo, generateSchoolLogo } from './utils/logoGenerator';
 import HeroSection from './components/HeroSection';
 import RegistrationForm from './components/RegistrationForm';
@@ -132,9 +132,10 @@ export default function App() {
           const parsed = JSON.parse(stored);
           return {
             ...parsed,
-            schoolLogo: '', // Clear school logo as requested
+            orgLogo: parsed.orgLogo || generateAerobLogo(),
+            schoolLogo: parsed.schoolLogo || generateSchoolLogo(),
             kopLine2: parsed.kopLine2?.includes('MALANG') ? 'KLUB AEROMODELING & ROBOTIKA (AEROB) BONDOWOSO' : (parsed.kopLine2 || 'KLUB AEROMODELING & ROBOTIKA (AEROB) BONDOWOSO'),
-            kopLine3: 'SMAN 1 BONDOWOSO'
+            kopLine3: parsed.kopLine3 || 'SMAN 1 BONDOWOSO'
           };
         } catch (e) {
           console.error('Failed to parse kop config', e);
@@ -142,8 +143,8 @@ export default function App() {
       }
     }
     return {
-      orgLogo: '',
-      schoolLogo: '',
+      orgLogo: generateAerobLogo(),
+      schoolLogo: generateSchoolLogo(),
       kopLine1: 'ORGANISASI INTRA SEKOLAH (OSIS) / KLUB EKSTRAKURIKULER',
       kopLine2: 'KLUB AEROMODELING & ROBOTIKA (AEROB) BONDOWOSO',
       kopLine3: 'SMAN 1 BONDOWOSO',
@@ -158,13 +159,13 @@ export default function App() {
     return (import.meta as any).env.VITE_SHEETS_API_URL || '';
   });
 
-  // Generate org logo on mount if missing
+  // Ensure both org and school logos are generated on mount if missing
   useEffect(() => {
     const updated = {
       ...kopConfig,
       orgLogo: kopConfig.orgLogo || generateAerobLogo(),
-      schoolLogo: '',
-      kopLine3: 'SMAN 1 BONDOWOSO'
+      schoolLogo: kopConfig.schoolLogo || generateSchoolLogo(),
+      kopLine3: kopConfig.kopLine3 || 'SMAN 1 BONDOWOSO'
     };
     setKopConfig(updated);
     localStorage.setItem(LOCAL_STORAGE_KOP_KEY, JSON.stringify(updated));
@@ -173,12 +174,163 @@ export default function App() {
   const handleUpdateKopConfig = (newConfig: KopConfig) => {
     setKopConfig(newConfig);
     localStorage.setItem(LOCAL_STORAGE_KOP_KEY, JSON.stringify(newConfig));
+
+    // Sync config to Google Apps Script if connected so all gadgets receive updated settings
+    if (appScriptUrl && appScriptUrl.trim().startsWith('https://')) {
+      fetch(appScriptUrl.trim(), {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({
+          action: 'saveConfig',
+          config: newConfig
+        })
+      }).catch(err => console.error('Failed to sync Kop config to Apps Script:', err));
+    }
   };
 
   const handleUpdateAppScriptUrl = (url: string) => {
-    setAppScriptUrl(url);
-    localStorage.setItem('aerob_appscript_url_v1', url);
+    const cleanUrl = url.trim();
+    setAppScriptUrl(cleanUrl);
+    localStorage.setItem('aerob_appscript_url_v1', cleanUrl);
+    if (cleanUrl.startsWith('https://')) {
+      handleSyncFromSpreadsheet(cleanUrl);
+    }
   };
+
+  // Sync registrations & config from Google Spreadsheet API
+  const handleSyncFromSpreadsheet = async (customUrl?: string): Promise<{ success: boolean; count?: number; message?: string }> => {
+    const targetUrl = customUrl || appScriptUrl;
+    if (!targetUrl || !targetUrl.trim().startsWith('https://')) {
+      return { 
+        success: false, 
+        message: 'URL Google Apps Script belum dikonfigurasi! Silakan masukkan URL di menu Pengaturan Kop.' 
+      };
+    }
+
+    try {
+      const res = await fetch(targetUrl.trim());
+      if (!res.ok) {
+        throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+      }
+      const data = await res.json();
+      
+      let itemsList: any[] = [];
+      let remoteConfig: KopConfig | null = null;
+
+      if (Array.isArray(data)) {
+        itemsList = data;
+        if ((data as any).config) {
+          remoteConfig = (data as any).config;
+        }
+      } else if (data && typeof data === 'object') {
+        if (Array.isArray(data.registrations)) {
+          itemsList = data.registrations;
+        } else if (Array.isArray(data.data)) {
+          itemsList = data.data;
+        }
+        if (data.config && typeof data.config === 'object') {
+          remoteConfig = data.config;
+        }
+      }
+
+      // If remote config exists from Google Apps Script, update local kopConfig
+      if (remoteConfig && remoteConfig.kopLine1) {
+        const mergedConfig: KopConfig = {
+          orgLogo: remoteConfig.orgLogo || generateAerobLogo(),
+          schoolLogo: remoteConfig.schoolLogo || generateSchoolLogo(),
+          kopLine1: remoteConfig.kopLine1 || 'ORGANISASI INTRA SEKOLAH (OSIS) / KLUB EKSTRAKURIKULER',
+          kopLine2: remoteConfig.kopLine2 || 'KLUB AEROMODELING & ROBOTIKA (AEROB) BONDOWOSO',
+          kopLine3: remoteConfig.kopLine3 || 'SMAN 1 BONDOWOSO',
+          kopLine4: remoteConfig.kopLine4 || 'Sekretariat: SMAN 1 Bondowoso, Jawa Timur'
+        };
+        setKopConfig(mergedConfig);
+        localStorage.setItem(LOCAL_STORAGE_KOP_KEY, JSON.stringify(mergedConfig));
+      }
+
+      if (itemsList.length > 0 || Array.isArray(data) || (data && typeof data === 'object' && Array.isArray(data.registrations))) {
+        setRegistrations(prev => {
+          const existingMap = new Map<string, RegistrationData>();
+          prev.forEach(item => {
+            const key = item.id || `${item.fullName}-${item.nisn}`;
+            existingMap.set(key, item);
+          });
+
+          itemsList.forEach((item: any) => {
+            if (item.fullName && String(item.fullName).trim()) {
+              const norm: RegistrationData = {
+                id: String(item.id || `REG-${Date.now()}-${Math.floor(Math.random() * 1000)}`),
+                fullName: String(item.fullName || ''),
+                registrationDate: String(item.registrationDate || new Date().toLocaleString('id-ID')),
+                nisn: String(item.nisn || ''),
+                parentName: String(item.parentName || ''),
+                kelas: String(item.kelas || ''),
+                tempatLahir: String(item.tempatLahir || ''),
+                tanggalLahir: String(item.tanggalLahir || ''),
+                hobi: String(item.hobi || ''),
+                citaCita: String(item.citaCita || ''),
+                email: String(item.email || ''),
+                whatsapp: String(item.whatsapp || ''),
+                institution: String(item.institution || ''),
+                division: (item.division === 'Robotics' || item.division === 'Aeromodeling') ? item.division : 'Aeromodeling',
+                subDivision: (item.subDivision || 'RC Plane (Radio Control)') as SubDivisionType,
+                experienceLevel: (item.experienceLevel === 'Intermediate' || item.experienceLevel === 'Advanced') ? item.experienceLevel : 'Beginner',
+                motivation: String(item.motivation || '')
+              };
+              const key = norm.id || `${norm.fullName}-${norm.nisn}`;
+              existingMap.set(key, norm);
+            }
+          });
+
+          const merged = Array.from(existingMap.values());
+          localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(merged));
+          return merged;
+        });
+
+        return {
+          success: true,
+          count: itemsList.length,
+          message: remoteConfig 
+            ? `Berhasil menyingkronkan ${itemsList.length} pendaftar dan Pengaturan Kop dari Google Spreadsheet!` 
+            : `Berhasil menyingkronkan ${itemsList.length} pendaftar dari Google Spreadsheet!`
+        };
+      } else if (data && typeof data === 'object' && data.message) {
+        return {
+          success: false,
+          message: `Keterangan Apps Script: "${data.message}". Harap update kode Apps Script di Spreadsheet Anda ke versi terbaru.`
+        };
+      } else {
+        return {
+          success: false,
+          message: 'Format data dari Google Spreadsheet tidak valid.'
+        };
+      }
+    } catch (err: any) {
+      console.error('Error syncing from Google Spreadsheet:', err);
+      return {
+        success: false,
+        message: 'Gagal mengambil data dari Google Spreadsheet. Pastikan URL Web App benar dan Akses disetel ke "Siapa Saja (Anyone)".'
+      };
+    }
+  };
+
+  // Auto-sync from Google Spreadsheet on initial load or URL change
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const urlParam = params.get('scriptUrl') || params.get('appScriptUrl') || params.get('script');
+      if (urlParam && urlParam.trim().startsWith('https://')) {
+        const cleanUrl = urlParam.trim();
+        setAppScriptUrl(cleanUrl);
+        localStorage.setItem('aerob_appscript_url_v1', cleanUrl);
+        handleSyncFromSpreadsheet(cleanUrl);
+        return;
+      }
+    }
+
+    if (appScriptUrl && appScriptUrl.trim().startsWith('https://')) {
+      handleSyncFromSpreadsheet(appScriptUrl);
+    }
+  }, [appScriptUrl]);
 
   // Load registrations from LocalStorage on mount
   useEffect(() => {
@@ -363,6 +515,7 @@ export default function App() {
                 onUpdateKopConfig={handleUpdateKopConfig}
                 appScriptUrl={appScriptUrl}
                 onUpdateAppScriptUrl={handleUpdateAppScriptUrl}
+                onSyncFromSpreadsheet={handleSyncFromSpreadsheet}
               />
             </motion.div>
           )}

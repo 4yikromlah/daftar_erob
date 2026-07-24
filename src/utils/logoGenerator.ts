@@ -4,6 +4,7 @@
  */
 
 export function generateAerobLogo(): string {
+  if (typeof document === 'undefined') return '';
   const canvas = document.createElement('canvas');
   canvas.width = 120;
   canvas.height = 120;
@@ -62,6 +63,7 @@ export function generateAerobLogo(): string {
 }
 
 export function generateSchoolLogo(): string {
+  if (typeof document === 'undefined') return '';
   const canvas = document.createElement('canvas');
   canvas.width = 120;
   canvas.height = 120;

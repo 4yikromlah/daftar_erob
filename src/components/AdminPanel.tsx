@@ -18,6 +18,7 @@ interface AdminPanelProps {
   onUpdateKopConfig: (config: KopConfig) => void;
   appScriptUrl: string;
   onUpdateAppScriptUrl: (url: string) => void;
+  onSyncFromSpreadsheet?: (url?: string) => Promise<{ success: boolean; count?: number; message?: string }>;
 }
 
 export default function AdminPanel({ 
@@ -28,7 +29,8 @@ export default function AdminPanel({
   kopConfig,
   onUpdateKopConfig,
   appScriptUrl,
-  onUpdateAppScriptUrl
+  onUpdateAppScriptUrl,
+  onSyncFromSpreadsheet
 }: AdminPanelProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedDivision, setSelectedDivision] = useState<DivisionType | 'All'>('All');
@@ -36,6 +38,8 @@ export default function AdminPanel({
   const [actionSuccessMsg, setActionSuccessMsg] = useState<string | null>(null);
   const [expandedRowId, setExpandedRowId] = useState<string | null>(null);
   const [activeSubTab, setActiveSubTab] = useState<'pendaftar' | 'pengaturan'>('pendaftar');
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [copiedShareUrl, setCopiedShareUrl] = useState(false);
 
   const [localKop1, setLocalKop1] = useState(kopConfig.kopLine1 || '');
   const [localKop2, setLocalKop2] = useState(kopConfig.kopLine2 || '');
@@ -137,48 +141,21 @@ export default function AdminPanel({
     const scriptCode = `// KODE GOOGLE APPS SCRIPT - SALIN KE EXTENSIONS > APPS SCRIPT DI SPREADSHEET ANDA
 function doPost(e) {
   var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
-  
-  // Jika spreadsheet masih kosong, buat baris header (field database) otomatis
-  if (sheet.getLastRow() === 0) {
-    var headers = [
-      "ID Registrasi", 
-      "Tanggal Daftar", 
-      "NISN", 
-      "Nama Lengkap", 
-      "Orang Tua / Wali", 
-      "Kelas", 
-      "Tempat Lahir", 
-      "Tanggal Lahir", 
-      "Hobi", 
-      "Cita-Cita", 
-      "Email Aktif", 
-      "WhatsApp", 
-      "Asal Instansi", 
-      "Pilihan Divisi", 
-      "Sub Divisi", 
-      "Pemahaman/Pengalaman", 
-      "Motivasi"
-    ];
-    sheet.appendRow(headers);
-    
-    // Format header agar rapi dan profesional
-    var headerRange = sheet.getRange(1, 1, 1, headers.length);
-    headerRange.setFontWeight("bold");
-    headerRange.setBackground("#2563eb"); // Warna Biru AEROB
-    headerRange.setFontColor("#ffffff");
-    headerRange.setHorizontalAlignment("center");
-    sheet.setFrozenRows(1);
-    
-    // Auto-resize kolom
-    for (var i = 1; i <= headers.length; i++) {
-      sheet.autoResizeColumn(i);
-    }
-  }
+  var props = PropertiesService.getScriptProperties();
   
   try {
     var data = JSON.parse(e.postData.contents);
     
-    // Jika hanya request inisialisasi / cek koneksi
+    // Simpan Pengaturan Kop / Logo jika dikirim dari Admin Panel
+    if (data.action === 'saveConfig' && data.config) {
+      props.setProperty('AEROB_KOP_CONFIG', JSON.stringify(data.config));
+      return ContentService.createTextOutput(JSON.stringify({ 
+        status: 'success', 
+        message: 'Pengaturan Kop berhasil disimpan ke Google Apps Script!' 
+      })).setMimeType(ContentService.MimeType.JSON);
+    }
+
+    // Request inisialisasi / cek koneksi
     if (data.action === 'init') {
       return ContentService.createTextOutput(JSON.stringify({ 
         status: 'success', 
@@ -186,7 +163,24 @@ function doPost(e) {
       })).setMimeType(ContentService.MimeType.JSON);
     }
     
-    // Tambahkan data registrasi baru ke baris selanjutnya
+    // Jika spreadsheet masih kosong, buat baris header otomatis
+    if (sheet.getLastRow() === 0) {
+      var headers = [
+        "ID Registrasi", "Tanggal Daftar", "NISN", "Nama Lengkap", "Orang Tua / Wali", 
+        "Kelas", "Tempat Lahir", "Tanggal Lahir", "Hobi", "Cita-Cita", 
+        "Email Aktif", "WhatsApp", "Asal Instansi", "Pilihan Divisi", "Sub Divisi", 
+        "Pemahaman/Pengalaman", "Motivasi"
+      ];
+      sheet.appendRow(headers);
+      var headerRange = sheet.getRange(1, 1, 1, headers.length);
+      headerRange.setFontWeight("bold");
+      headerRange.setBackground("#2563eb");
+      headerRange.setFontColor("#ffffff");
+      headerRange.setHorizontalAlignment("center");
+      sheet.setFrozenRows(1);
+    }
+
+    // Tambahkan data registrasi baru
     sheet.appendRow([
       data.id || "",
       data.registrationDate || "",
@@ -221,15 +215,88 @@ function doPost(e) {
 }
 
 function doGet(e) {
-  return ContentService.createTextOutput(JSON.stringify({ 
-    status: 'success', 
-    message: 'Apps Script AEROB Aktif! Gunakan metode POST untuk mengirim data.' 
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+  var props = PropertiesService.getScriptProperties();
+  
+  var data = sheet.getDataRange().getValues();
+  var result = [];
+  
+  if (data && data.length > 1) {
+    for (var i = 1; i < data.length; i++) {
+      var row = data[i];
+      if (!row[0] && !row[3]) continue;
+      
+      result.push({
+        id: String(row[0] || ('REG-' + i)),
+        registrationDate: String(row[1] || ''),
+        nisn: String(row[2] || ''),
+        fullName: String(row[3] || ''),
+        parentName: String(row[4] || ''),
+        kelas: String(row[5] || ''),
+        tempatLahir: String(row[6] || ''),
+        tanggalLahir: String(row[7] || ''),
+        hobi: String(row[8] || ''),
+        citaCita: String(row[9] || ''),
+        email: String(row[10] || ''),
+        whatsapp: String(row[11] || ''),
+        institution: String(row[12] || ''),
+        division: String(row[13] || 'Aeromodeling'),
+        subDivision: String(row[14] || ''),
+        experienceLevel: String(row[15] || 'Beginner'),
+        motivation: String(row[16] || '')
+      });
+    }
+  }
+
+  var savedConfig = null;
+  try {
+    var rawConfig = props.getProperty('AEROB_KOP_CONFIG');
+    if (rawConfig) savedConfig = JSON.parse(rawConfig);
+  } catch (err) {}
+  
+  return ContentService.createTextOutput(JSON.stringify({
+    registrations: result,
+    config: savedConfig
   })).setMimeType(ContentService.MimeType.JSON);
 }`;
 
     navigator.clipboard.writeText(scriptCode);
     setCopied(true);
     setTimeout(() => setCopied(false), 2500);
+  };
+
+  const handleCopyShareUrl = () => {
+    const targetUrl = localAppScriptUrl || appScriptUrl;
+    if (!targetUrl || !targetUrl.trim().startsWith('https://')) {
+      alert('Mohon isi dan simpan URL Google Apps Script terlebih dahulu!');
+      return;
+    }
+    const origin = typeof window !== 'undefined' ? window.location.origin : '';
+    const path = typeof window !== 'undefined' ? window.location.pathname : '';
+    const shareUrl = `${origin}${path}?scriptUrl=${encodeURIComponent(targetUrl.trim())}`;
+    navigator.clipboard.writeText(shareUrl);
+    setCopiedShareUrl(true);
+    setTimeout(() => setCopiedShareUrl(false), 2500);
+  };
+
+  const handleSyncClick = async () => {
+    if (!onSyncFromSpreadsheet) return;
+    const targetUrl = localAppScriptUrl || appScriptUrl;
+    if (!targetUrl || !targetUrl.trim().startsWith('https://')) {
+      alert('Mohon masukkan URL Google Apps Script terlebih dahulu!');
+      setActiveSubTab('pengaturan');
+      return;
+    }
+
+    setIsSyncing(true);
+    const res = await onSyncFromSpreadsheet(targetUrl);
+    setIsSyncing(false);
+
+    if (res.success) {
+      triggerSuccess(res.message || 'Sinkronisasi dengan Google Spreadsheet berhasil!');
+    } else {
+      alert(res.message || 'Gagal menyingkronkan data dari Google Spreadsheet.');
+    }
   };
 
   const handleTestAppScriptUrl = async () => {
@@ -254,6 +321,17 @@ function doGet(e) {
         },
         body: JSON.stringify({ action: 'init' })
       });
+
+      if (onSyncFromSpreadsheet) {
+        const syncRes = await onSyncFromSpreadsheet(localAppScriptUrl);
+        if (syncRes.success) {
+          setTestStatusMsg({
+            type: 'success',
+            text: `Koneksi & Sinkronisasi Berhasil! ${syncRes.message}`
+          });
+          return;
+        }
+      }
       
       setTestStatusMsg({ 
         type: 'success', 
@@ -355,7 +433,19 @@ function doGet(e) {
         </div>
 
         {/* Global Control Actions */}
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2.5">
+          <button
+            id="admin-btn-sync"
+            type="button"
+            onClick={handleSyncClick}
+            disabled={isSyncing}
+            className="bg-emerald-600 text-white hover:bg-emerald-700 active:bg-emerald-800 border border-emerald-500/50 px-4 py-2.5 text-xs font-bold rounded-xl shadow-md hover:shadow-lg transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50"
+            title="Tarik dan sinkronkan pendaftar terbaru dari Google Spreadsheet ke website"
+          >
+            <RefreshCw className={`w-4 h-4 ${isSyncing ? 'animate-spin' : ''}`} />
+            {isSyncing ? 'Menyingkronkan...' : 'Sinkronkan Google Sheets'}
+          </button>
+
           {registrations.length === 0 && (
             <button
               id="admin-btn-seed"
@@ -375,14 +465,14 @@ function doGet(e) {
                 onClick={handleExportJSON}
                 className="clay-btn-blue px-4 py-2.5 text-xs font-bold flex items-center gap-2 hover:clay-btn-blue-hover transition-all"
               >
-                <Download className="w-4 h-4" /> Ekspor Data (.JSON)
+                <Download className="w-4 h-4" /> Ekspor (.JSON)
               </button>
               <button
                 id="admin-btn-clear"
                 onClick={() => {
-                  if (confirm('Apakah Anda yakin ingin menghapus SELURUH data pendaftar?')) {
+                  if (confirm('Apakah Anda yakin ingin menghapus SELURUH data pendaftar lokal?')) {
                     onClearAll();
-                    triggerSuccess('Seluruh database pendaftaran berhasil dibersihkan!');
+                    triggerSuccess('Seluruh database pendaftaran lokal berhasil dibersihkan!');
                   }
                 }}
                 className="clay-btn-gray text-rose-600 border border-rose-100 px-4 py-2.5 text-xs font-bold flex items-center gap-2 hover:bg-rose-50 transition-all"
@@ -943,12 +1033,21 @@ function doGet(e) {
                   />
                 </div>
 
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2">
                   <button
                     type="submit"
-                    className="flex-grow bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 py-2.5 text-xs font-bold rounded-xl transition-all cursor-pointer flex items-center justify-center gap-1.5"
+                    className="flex-1 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 py-2.5 text-xs font-bold rounded-xl transition-all cursor-pointer flex items-center justify-center gap-1.5"
                   >
                     <Check className="w-3.5 h-3.5" /> Simpan URL
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleSyncClick}
+                    disabled={isSyncing}
+                    className="flex-1 bg-emerald-600 text-white hover:bg-emerald-700 py-2.5 text-xs font-bold rounded-xl transition-all cursor-pointer flex items-center justify-center gap-1.5 disabled:opacity-50"
+                  >
+                    <RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin' : ''}`} />
+                    {isSyncing ? 'Menyingkronkan...' : 'Tarik & Sinkronkan Data'}
                   </button>
                   <button
                     type="button"
@@ -959,7 +1058,7 @@ function doGet(e) {
                     {isTestingUrl ? (
                       <span className="animate-spin h-3.5 w-3.5 border-2 border-blue-700 border-t-transparent rounded-full font-bold"></span>
                     ) : (
-                      'Uji & Buat Field'
+                      'Uji Koneksi'
                     )}
                   </button>
                 </div>
@@ -1004,6 +1103,31 @@ function doGet(e) {
                   ) : (
                     <>
                       <Copy className="w-3.5 h-3.5 text-slate-500" /> Salin Kode Google Apps Script
+                    </>
+                  )}
+                </button>
+              </div>
+
+              {/* Sync Link for Multi-gadget access */}
+              <div className="bg-emerald-50/60 rounded-xl p-4 border border-emerald-100 space-y-2">
+                <span className="text-[10px] font-mono font-bold text-emerald-800 uppercase tracking-wider block flex items-center gap-1">
+                  📱 Akses & Sinkronkan Pengaturan ke Gadget Lain:
+                </span>
+                <p className="text-[10px] text-slate-600 leading-relaxed font-medium">
+                  Pengaturan Kop Surat (teks &amp; logo) serta Data Pendaftar disinkronkan secara terpusat. Gunakan tombol di bawah untuk menyalin Link Akses. Buka link tersebut di HP/Gadget lain agar otomatis terhubung ke database &amp; pengaturan yang sama:
+                </p>
+                <button
+                  type="button"
+                  onClick={handleCopyShareUrl}
+                  className="w-full mt-1.5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 shadow-sm transition-all cursor-pointer"
+                >
+                  {copiedShareUrl ? (
+                    <>
+                      <Check className="w-3.5 h-3.5 text-white" /> Link Sync Gadget Tersalin!
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="w-3.5 h-3.5 text-white" /> Salin Link Akses Sync Gadget
                     </>
                   )}
                 </button>
