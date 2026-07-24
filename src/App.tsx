@@ -152,11 +152,38 @@ export default function App() {
     };
   });
 
+  const getEnvScriptUrl = (): string => {
+    if (typeof import.meta !== 'undefined' && (import.meta as any).env) {
+      const env = (import.meta as any).env;
+      return (
+        env.VITE_SHEETS_API_URL ||
+        env.VITE_APP_SCRIPT_URL ||
+        env.VITE_APPS_SCRIPT_URL ||
+        env.VITE_GOOGLE_SCRIPT_URL ||
+        env.VITE_SCRIPT_URL ||
+        env.VITE_SPREADSHEET_URL ||
+        ''
+      ).trim();
+    }
+    return '';
+  };
+
   const [appScriptUrl, setAppScriptUrl] = useState<string>(() => {
     if (typeof window !== 'undefined') {
-      return localStorage.getItem('aerob_appscript_url_v1') || (import.meta as any).env.VITE_SHEETS_API_URL || '';
+      const urlParams = new URLSearchParams(window.location.search);
+      const paramUrl = urlParams.get('scriptUrl') || urlParams.get('appScriptUrl') || urlParams.get('script');
+      if (paramUrl && paramUrl.trim().startsWith('https://')) {
+        const clean = paramUrl.trim();
+        localStorage.setItem('aerob_appscript_url_v1', clean);
+        return clean;
+      }
+
+      const stored = localStorage.getItem('aerob_appscript_url_v1');
+      if (stored && stored.trim().startsWith('https://')) {
+        return stored.trim();
+      }
     }
-    return (import.meta as any).env.VITE_SHEETS_API_URL || '';
+    return getEnvScriptUrl();
   });
 
   // Ensure both org and school logos are generated on mount if missing
@@ -176,8 +203,9 @@ export default function App() {
     localStorage.setItem(LOCAL_STORAGE_KOP_KEY, JSON.stringify(newConfig));
 
     // Sync config to Google Apps Script if connected so all gadgets receive updated settings
-    if (appScriptUrl && appScriptUrl.trim().startsWith('https://')) {
-      fetch(appScriptUrl.trim(), {
+    const activeUrl = appScriptUrl || getEnvScriptUrl();
+    if (activeUrl && activeUrl.trim().startsWith('https://')) {
+      fetch(activeUrl.trim(), {
         method: 'POST',
         headers: { 'Content-Type': 'text/plain;charset=utf-8' },
         body: JSON.stringify({
@@ -199,11 +227,11 @@ export default function App() {
 
   // Sync registrations & config from Google Spreadsheet API
   const handleSyncFromSpreadsheet = async (customUrl?: string): Promise<{ success: boolean; count?: number; message?: string }> => {
-    const targetUrl = customUrl || appScriptUrl;
+    const targetUrl = customUrl || appScriptUrl || getEnvScriptUrl();
     if (!targetUrl || !targetUrl.trim().startsWith('https://')) {
       return { 
         success: false, 
-        message: 'URL Google Apps Script belum dikonfigurasi! Silakan masukkan URL di menu Pengaturan Kop.' 
+        message: 'URL Google Apps Script belum dikonfigurasi! Silakan masukkan URL di menu Pengaturan Kop atau tambahkan VITE_SHEETS_API_URL di Vercel Environment Variables.' 
       };
     }
 
@@ -218,15 +246,72 @@ export default function App() {
       let remoteConfig: KopConfig | null = null;
 
       if (Array.isArray(data)) {
-        itemsList = data;
-        if ((data as any).config) {
-          remoteConfig = (data as any).config;
+        if (data.length > 0 && Array.isArray(data[0])) {
+          // Parse 2D raw spreadsheet rows
+          const rows = data;
+          if (rows.length > 1) {
+            const headers: string[] = rows[0].map((h: any) => String(h).toLowerCase().trim());
+            const findCol = (keywords: string[], defaultIdx: number): number => {
+              const idx = headers.findIndex(h => keywords.some(kw => h.includes(kw)));
+              return idx !== -1 ? idx : defaultIdx;
+            };
+
+            const idIdx = findCol(['id', 'registrasi'], 0);
+            const dateIdx = findCol(['tanggal', 'date', 'waktu'], 1);
+            const nisnIdx = findCol(['nisn'], 2);
+            const nameIdx = findCol(['nama', 'fullname', 'lengkap'], 3);
+            const parentIdx = findCol(['orang tua', 'parent', 'wali'], 4);
+            const kelasIdx = findCol(['kelas', 'class'], 5);
+            const tempatIdx = findCol(['tempat', 'pob'], 6);
+            const tglLahirIdx = findCol(['lahir', 'dob'], 7);
+            const hobiIdx = findCol(['hobi', 'hobby'], 8);
+            const citaIdx = findCol(['cita', 'goal'], 9);
+            const emailIdx = findCol(['email'], 10);
+            const waIdx = findCol(['whatsapp', 'wa', 'hp', 'telepon'], 11);
+            const instIdx = findCol(['instansi', 'sekolah', 'asal'], 12);
+            const divIdx = findCol(['divisi', 'pilihan', 'division'], 13);
+            const subDivIdx = findCol(['sub', 'kategori'], 14);
+            const expIdx = findCol(['pemahaman', 'pengalaman', 'level'], 15);
+            const motIdx = findCol(['motivasi', 'alasan'], 16);
+
+            for (let i = 1; i < rows.length; i++) {
+              const r = rows[i];
+              if (r && (r[nameIdx] || r[nisnIdx])) {
+                itemsList.push({
+                  id: String(r[idIdx] || `REG-${i}`),
+                  registrationDate: String(r[dateIdx] || ''),
+                  nisn: String(r[nisnIdx] || ''),
+                  fullName: String(r[nameIdx] || ''),
+                  parentName: String(r[parentIdx] || ''),
+                  kelas: String(r[kelasIdx] || ''),
+                  tempatLahir: String(r[tempatIdx] || ''),
+                  tanggalLahir: String(r[tglLahirIdx] || ''),
+                  hobi: String(r[hobiIdx] || ''),
+                  citaCita: String(r[citaIdx] || ''),
+                  email: String(r[emailIdx] || ''),
+                  whatsapp: String(r[waIdx] || ''),
+                  institution: String(r[instIdx] || ''),
+                  division: String(r[divIdx] || 'Aeromodeling'),
+                  subDivision: String(r[subDivIdx] || ''),
+                  experienceLevel: String(r[expIdx] || 'Beginner'),
+                  motivation: String(r[motIdx] || '')
+                });
+              }
+            }
+          }
+        } else {
+          itemsList = data;
+          if ((data as any).config) {
+            remoteConfig = (data as any).config;
+          }
         }
       } else if (data && typeof data === 'object') {
         if (Array.isArray(data.registrations)) {
           itemsList = data.registrations;
         } else if (Array.isArray(data.data)) {
           itemsList = data.data;
+        } else if (Array.isArray(data.rows)) {
+          itemsList = data.rows;
         }
         if (data.config && typeof data.config === 'object') {
           remoteConfig = data.config;
@@ -296,7 +381,7 @@ export default function App() {
       } else if (data && typeof data === 'object' && data.message) {
         return {
           success: false,
-          message: `Keterangan Apps Script: "${data.message}". Harap update kode Apps Script di Spreadsheet Anda ke versi terbaru.`
+          message: `Keterangan Apps Script: "${data.message}".`
         };
       } else {
         return {

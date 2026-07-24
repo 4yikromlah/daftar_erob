@@ -39,7 +39,6 @@ export default function AdminPanel({
   const [expandedRowId, setExpandedRowId] = useState<string | null>(null);
   const [activeSubTab, setActiveSubTab] = useState<'pendaftar' | 'pengaturan'>('pendaftar');
   const [isSyncing, setIsSyncing] = useState(false);
-  const [copiedShareUrl, setCopiedShareUrl] = useState(false);
 
   const [localKop1, setLocalKop1] = useState(kopConfig.kopLine1 || '');
   const [localKop2, setLocalKop2] = useState(kopConfig.kopLine2 || '');
@@ -263,20 +262,6 @@ function doGet(e) {
     navigator.clipboard.writeText(scriptCode);
     setCopied(true);
     setTimeout(() => setCopied(false), 2500);
-  };
-
-  const handleCopyShareUrl = () => {
-    const targetUrl = localAppScriptUrl || appScriptUrl;
-    if (!targetUrl || !targetUrl.trim().startsWith('https://')) {
-      alert('Mohon isi dan simpan URL Google Apps Script terlebih dahulu!');
-      return;
-    }
-    const origin = typeof window !== 'undefined' ? window.location.origin : '';
-    const path = typeof window !== 'undefined' ? window.location.pathname : '';
-    const shareUrl = `${origin}${path}?scriptUrl=${encodeURIComponent(targetUrl.trim())}`;
-    navigator.clipboard.writeText(shareUrl);
-    setCopiedShareUrl(true);
-    setTimeout(() => setCopiedShareUrl(false), 2500);
   };
 
   const handleSyncClick = async () => {
@@ -1009,12 +994,27 @@ function doGet(e) {
                   <h3 className="text-sm font-bold text-slate-700 uppercase tracking-wider font-mono flex items-center gap-2">
                     <Database className="w-4 h-4 text-emerald-500" /> Google Spreadsheet Sync
                   </h3>
-                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${appScriptUrl ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-amber-50 text-amber-700 border border-amber-200'}`}>
-                    {appScriptUrl ? 'Terkoneksi' : 'Belum Terkoneksi'}
-                  </span>
+                  <div className="flex items-center gap-1.5">
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${appScriptUrl ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-amber-50 text-amber-700 border border-amber-200'}`}>
+                      {appScriptUrl ? 'Terkoneksi' : 'Belum Terkoneksi'}
+                    </span>
+                  </div>
                 </div>
                 <p className="text-xs text-slate-400 mt-1">
                   Koneksikan form pendaftaran dengan Google Spreadsheet menggunakan Apps Script agar database terisi otomatis secara real-time.
+                </p>
+              </div>
+
+              {/* Vercel Redeploy Alert Box */}
+              <div className="bg-amber-50/80 border border-amber-200/80 rounded-xl p-3 text-[11px] text-amber-900 leading-relaxed font-medium space-y-1">
+                <span className="font-bold flex items-center gap-1 text-amber-800">
+                  ⚡ Catatan Penting Pengaturan Vercel Environment Variable:
+                </span>
+                <p>
+                  Jika Anda memasukkan URL di Vercel (<code className="bg-amber-100 px-1 py-0.5 rounded font-mono text-rose-700">VITE_SHEETS_API_URL</code>), Anda <strong>WAJIB menekan tombol Redeploy (Deploy Ulang)</strong> di Vercel Dashboard agar file JavaScript memperbarui nilai environment variable tersebut.
+                </p>
+                <p className="text-[10px] text-amber-700">
+                  Atau Anda juga dapat menempelkan URL secara langsung pada kolom di bawah ini lalu klik <strong>Simpan URL</strong> &amp; <strong>Tarik &amp; Sinkronkan Data</strong>.
                 </p>
               </div>
 
@@ -1103,31 +1103,6 @@ function doGet(e) {
                   ) : (
                     <>
                       <Copy className="w-3.5 h-3.5 text-slate-500" /> Salin Kode Google Apps Script
-                    </>
-                  )}
-                </button>
-              </div>
-
-              {/* Sync Link for Multi-gadget access */}
-              <div className="bg-emerald-50/60 rounded-xl p-4 border border-emerald-100 space-y-2">
-                <span className="text-[10px] font-mono font-bold text-emerald-800 uppercase tracking-wider block flex items-center gap-1">
-                  📱 Akses & Sinkronkan Pengaturan ke Gadget Lain:
-                </span>
-                <p className="text-[10px] text-slate-600 leading-relaxed font-medium">
-                  Pengaturan Kop Surat (teks &amp; logo) serta Data Pendaftar disinkronkan secara terpusat. Gunakan tombol di bawah untuk menyalin Link Akses. Buka link tersebut di HP/Gadget lain agar otomatis terhubung ke database &amp; pengaturan yang sama:
-                </p>
-                <button
-                  type="button"
-                  onClick={handleCopyShareUrl}
-                  className="w-full mt-1.5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 shadow-sm transition-all cursor-pointer"
-                >
-                  {copiedShareUrl ? (
-                    <>
-                      <Check className="w-3.5 h-3.5 text-white" /> Link Sync Gadget Tersalin!
-                    </>
-                  ) : (
-                    <>
-                      <Copy className="w-3.5 h-3.5 text-white" /> Salin Link Akses Sync Gadget
                     </>
                   )}
                 </button>
