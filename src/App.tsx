@@ -186,7 +186,7 @@ export default function App() {
     return getEnvScriptUrl();
   });
 
-  // Ensure both org and school logos are generated on mount if missing
+  // Ensure both org and school logos are generated on mount if missing and sync from Google Apps Script
   useEffect(() => {
     const updated = {
       ...kopConfig,
@@ -196,6 +196,11 @@ export default function App() {
     };
     setKopConfig(updated);
     localStorage.setItem(LOCAL_STORAGE_KOP_KEY, JSON.stringify(updated));
+
+    const activeUrl = appScriptUrl || getEnvScriptUrl();
+    if (activeUrl && activeUrl.trim().startsWith('https://')) {
+      handleSyncFromSpreadsheet(activeUrl);
+    }
   }, []);
 
   const handleUpdateKopConfig = (newConfig: KopConfig) => {
@@ -319,14 +324,14 @@ export default function App() {
       }
 
       // If remote config exists from Google Apps Script, update local kopConfig
-      if (remoteConfig && remoteConfig.kopLine1) {
+      if (remoteConfig && typeof remoteConfig === 'object') {
         const mergedConfig: KopConfig = {
           orgLogo: remoteConfig.orgLogo || generateAerobLogo(),
           schoolLogo: remoteConfig.schoolLogo || generateSchoolLogo(),
-          kopLine1: remoteConfig.kopLine1 || 'ORGANISASI INTRA SEKOLAH (OSIS) / KLUB EKSTRAKURIKULER',
-          kopLine2: remoteConfig.kopLine2 || 'KLUB AEROMODELING & ROBOTIKA (AEROB) BONDOWOSO',
-          kopLine3: remoteConfig.kopLine3 || 'SMAN 1 BONDOWOSO',
-          kopLine4: remoteConfig.kopLine4 || 'Sekretariat: SMAN 1 Bondowoso, Jawa Timur'
+          kopLine1: remoteConfig.kopLine1 !== undefined ? remoteConfig.kopLine1 : 'ORGANISASI INTRA SEKOLAH (OSIS) / KLUB EKSTRAKURIKULER',
+          kopLine2: remoteConfig.kopLine2 !== undefined ? remoteConfig.kopLine2 : 'KLUB AEROMODELING & ROBOTIKA (AEROB) BONDOWOSO',
+          kopLine3: remoteConfig.kopLine3 !== undefined ? remoteConfig.kopLine3 : 'SMAN 1 BONDOWOSO',
+          kopLine4: remoteConfig.kopLine4 !== undefined ? remoteConfig.kopLine4 : 'Sekretariat: SMAN 1 Bondowoso, Jawa Timur'
         };
         setKopConfig(mergedConfig);
         localStorage.setItem(LOCAL_STORAGE_KOP_KEY, JSON.stringify(mergedConfig));

@@ -61,7 +61,46 @@ export default function AdminPanel({
     setLocalAppScriptUrl(appScriptUrl || '');
   }, [appScriptUrl]);
 
-  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>, type: 'org' | 'school') => {
+  const compressLogoImage = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          const MAX_SIZE = 250;
+          let width = img.width;
+          let height = img.height;
+          if (width > height) {
+            if (width > MAX_SIZE) {
+              height = Math.round((height * MAX_SIZE) / width);
+              width = MAX_SIZE;
+            }
+          } else {
+            if (height > MAX_SIZE) {
+              width = Math.round((width * MAX_SIZE) / height);
+              height = MAX_SIZE;
+            }
+          }
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          if (ctx) {
+            ctx.drawImage(img, 0, 0, width, height);
+            resolve(canvas.toDataURL('image/png'));
+          } else {
+            resolve(e.target?.result as string);
+          }
+        };
+        img.onerror = () => resolve(e.target?.result as string);
+        img.src = e.target?.result as string;
+      };
+      reader.onerror = (err) => reject(err);
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>, type: 'org' | 'school') => {
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -70,48 +109,62 @@ export default function AdminPanel({
       return;
     }
 
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const base64String = event.target?.result as string;
-      if (type === 'org') {
-        onUpdateKopConfig({ ...kopConfig, orgLogo: base64String });
-      } else {
-        onUpdateKopConfig({ ...kopConfig, schoolLogo: base64String });
-      }
-      triggerSuccess(`Logo ${type === 'org' ? 'Organisasi' : 'Sekolah'} berhasil diperbarui!`);
-    };
-    reader.readAsDataURL(file);
+    try {
+      const compressedBase64 = await compressLogoImage(file);
+      const updatedConfig: KopConfig = {
+        ...kopConfig,
+        kopLine1: localKop1,
+        kopLine2: localKop2,
+        kopLine3: localKop3,
+        kopLine4: localKop4,
+        [type === 'org' ? 'orgLogo' : 'schoolLogo']: compressedBase64
+      };
+      onUpdateKopConfig(updatedConfig);
+      triggerSuccess(`Logo ${type === 'org' ? 'Organisasi' : 'Sekolah'} berhasil diperbarui & disimpan!`);
+    } catch (err) {
+      alert('Gagal memproses file gambar logo.');
+    }
   };
 
   const handleResetLogo = (type: 'org' | 'school') => {
     const defaultLogo = type === 'org' ? generateAerobLogo() : generateSchoolLogo();
-    if (type === 'org') {
-      onUpdateKopConfig({ ...kopConfig, orgLogo: defaultLogo });
-    } else {
-      onUpdateKopConfig({ ...kopConfig, schoolLogo: defaultLogo });
-    }
-    triggerSuccess(`Logo ${type === 'org' ? 'Organisasi' : 'Sekolah'} berhasil di-reset ke default!`);
-  };
-
-  const handleRemoveLogo = (type: 'org' | 'school') => {
-    if (type === 'org') {
-      onUpdateKopConfig({ ...kopConfig, orgLogo: '' });
-    } else {
-      onUpdateKopConfig({ ...kopConfig, schoolLogo: '' });
-    }
-    triggerSuccess(`Logo ${type === 'org' ? 'Organisasi' : 'Sekolah'} berhasil dihapus!`);
-  };
-
-  const handleSaveKopConfig = (e: React.FormEvent) => {
-    e.preventDefault();
-    onUpdateKopConfig({
+    const updatedConfig: KopConfig = {
       ...kopConfig,
       kopLine1: localKop1,
       kopLine2: localKop2,
       kopLine3: localKop3,
       kopLine4: localKop4,
-    });
-    triggerSuccess('Pengaturan teks Kop Formulir berhasil disimpan!');
+      [type === 'org' ? 'orgLogo' : 'schoolLogo']: defaultLogo
+    };
+    onUpdateKopConfig(updatedConfig);
+    triggerSuccess(`Logo ${type === 'org' ? 'Organisasi' : 'Sekolah'} berhasil di-reset!`);
+  };
+
+  const handleRemoveLogo = (type: 'org' | 'school') => {
+    const updatedConfig: KopConfig = {
+      ...kopConfig,
+      kopLine1: localKop1,
+      kopLine2: localKop2,
+      kopLine3: localKop3,
+      kopLine4: localKop4,
+      [type === 'org' ? 'orgLogo' : 'schoolLogo']: ''
+    };
+    onUpdateKopConfig(updatedConfig);
+    triggerSuccess(`Logo ${type === 'org' ? 'Organisasi' : 'Sekolah'} berhasil dihapus!`);
+  };
+
+  const handleSaveKopConfig = (e: React.FormEvent) => {
+    e.preventDefault();
+    const fullConfig: KopConfig = {
+      orgLogo: kopConfig.orgLogo || generateAerobLogo(),
+      schoolLogo: kopConfig.schoolLogo || generateSchoolLogo(),
+      kopLine1: localKop1,
+      kopLine2: localKop2,
+      kopLine3: localKop3,
+      kopLine4: localKop4,
+    };
+    onUpdateKopConfig(fullConfig);
+    triggerSuccess('Pengaturan Kop Surat (Teks & Logo) berhasil disimpan secara permanen!');
   };
 
   const handleResetAllKop = () => {
@@ -139,18 +192,22 @@ export default function AdminPanel({
   const handleCopyScript = () => {
     const scriptCode = `// KODE GOOGLE APPS SCRIPT - SALIN KE EXTENSIONS > APPS SCRIPT DI SPREADSHEET ANDA
 function doPost(e) {
-  var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
-  var props = PropertiesService.getScriptProperties();
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = ss.getActiveSheet();
   
   try {
     var data = JSON.parse(e.postData.contents);
     
-    // Simpan Pengaturan Kop / Logo jika dikirim dari Admin Panel
+    // Simpan Pengaturan Kop / Logo ke Tab "Pengaturan_Kop" secara permanen
     if (data.action === 'saveConfig' && data.config) {
-      props.setProperty('AEROB_KOP_CONFIG', JSON.stringify(data.config));
+      var configSheet = ss.getSheetByName("Pengaturan_Kop");
+      if (!configSheet) {
+        configSheet = ss.insertSheet("Pengaturan_Kop");
+      }
+      configSheet.getRange("A1").setValue(JSON.stringify(data.config));
       return ContentService.createTextOutput(JSON.stringify({ 
         status: 'success', 
-        message: 'Pengaturan Kop berhasil disimpan ke Google Apps Script!' 
+        message: 'Pengaturan Kop berhasil disimpan secara permanen di Google Spreadsheet!' 
       })).setMimeType(ContentService.MimeType.JSON);
     }
 
@@ -158,7 +215,7 @@ function doPost(e) {
     if (data.action === 'init') {
       return ContentService.createTextOutput(JSON.stringify({ 
         status: 'success', 
-        message: 'Koneksi Berhasil! Field database berhasil dibuat di Spreadsheet.' 
+        message: 'Koneksi Berhasil! Google Apps Script siap digunakan.' 
       })).setMimeType(ContentService.MimeType.JSON);
     }
     
@@ -214,8 +271,8 @@ function doPost(e) {
 }
 
 function doGet(e) {
-  var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
-  var props = PropertiesService.getScriptProperties();
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = ss.getActiveSheet();
   
   var data = sheet.getDataRange().getValues();
   var result = [];
@@ -249,8 +306,13 @@ function doGet(e) {
 
   var savedConfig = null;
   try {
-    var rawConfig = props.getProperty('AEROB_KOP_CONFIG');
-    if (rawConfig) savedConfig = JSON.parse(rawConfig);
+    var configSheet = ss.getSheetByName("Pengaturan_Kop");
+    if (configSheet && configSheet.getRange("A1").getValue()) {
+      savedConfig = JSON.parse(configSheet.getRange("A1").getValue());
+    } else {
+      var rawConfig = PropertiesService.getScriptProperties().getProperty('AEROB_KOP_CONFIG');
+      if (rawConfig) savedConfig = JSON.parse(rawConfig);
+    }
   } catch (err) {}
   
   return ContentService.createTextOutput(JSON.stringify({
